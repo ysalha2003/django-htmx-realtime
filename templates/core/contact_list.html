@@ -1,0 +1,54 @@
+{% extends 'base/base.html' %}
+{% block title %}Contact Inquiries{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="text-2xl font-bold text-gray-800">Contact Inquiries</h2>
+    </div>
+    <div class="card-body">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <input type="text" name="q" value="{{ query }}" placeholder="Search by name, email, subject..." class="form-input">
+            <select name="status" class="form-input">
+                <option value="">All Statuses</option>
+                <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="resolved" {% if status == 'resolved' %}selected{% endif %}>Resolved</option>
+            </select>
+            <button type="submit" class="btn-primary">Filter</button>
+        </form>
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="py-2 px-4 text-left">Name</th><th class="py-2 px-4 text-left">Subject</th>
+                        <th class="py-2 px-4 text-left">Date</th><th class="py-2 px-4 text-left">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contact in contacts %}
+                    <tr class="border-b">
+                        <td class="py-2 px-4">{{ contact.name }}</td><td class="py-2 px-4">{{ contact.subject|truncatechars:40 }}</td>
+                        <td class="py-2 px-4">{{ contact.created_at|date:"Y-m-d" }}</td>
+                        <td class="py-2 px-4">
+                            <span class="px-2 py-1 rounded-full text-xs {% if contact.is_resolved %}bg-green-100 text-green-700{% else %}bg-yellow-100 text-yellow-700{% endif %}">
+                                {% if contact.is_resolved %}Resolved{% else %}Pending{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center py-4">No inquiries found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if contacts.has_other_pages %}
+        <div class="mt-6 flex justify-center">
+            <nav class="flex space-x-2">
+                {% if contacts.has_previous %}<a href="?page=1" class="btn-secondary text-sm">« first</a><a href="?page={{ contacts.previous_page_number }}" class="btn-secondary text-sm">previous</a>{% endif %}
+                <span class="py-2 px-4">Page {{ contacts.number }} of {{ contacts.paginator.num_pages }}</span>
+                {% if contacts.has_next %}<a href="?page={{ contacts.next_page_number }}" class="btn-secondary text-sm">next</a><a href="?page={{ contacts.paginator.num_pages }}" class="btn-secondary text-sm">last »</a>{% endif %}
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

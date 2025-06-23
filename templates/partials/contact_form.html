@@ -1,0 +1,14 @@
+<form hx-post="{% url 'core:contact' %}" hx-target="#contact-form-container" hx-swap="innerHTML" class="space-y-6" novalidate>
+    {% csrf_token %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div><label for="{{ form.name.id_for_label }}" class="form-label">Full Name</label>{{ form.name }}<div id="name-validation"></div>{% if form.name.errors %}<div class="validation-error">{{ form.name.errors|first }}</div>{% endif %}</div>
+        <div><label for="{{ form.email.id_for_label }}" class="form-label">Email Address</label>{{ form.email }}<div id="email-validation"></div>{% if form.email.errors %}<div class="validation-error">{{ form.email.errors|first }}</div>{% endif %}</div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-2"><label for="{{ form.subject.id_for_label }}" class="form-label">Subject</label>{{ form.subject }}<div id="subject-validation"></div>{% if form.subject.errors %}<div class="validation-error">{{ form.subject.errors|first }}</div>{% endif %}</div>
+        <div><label for="{{ form.category.id_for_label }}" class="form-label">Category</label>{{ form.category }}{% if form.category.errors %}<div class="validation-error">{{ form.category.errors|first }}</div>{% endif %}</div>
+    </div>
+    <div><label for="{{ form.message.id_for_label }}" class="form-label">Message</label>{{ form.message }}<div id="message-validation"></div>{% if form.message.errors %}<div class="validation-error">{{ form.message.errors|first }}</div>{% endif %}</div>
+    {% if form.non_field_errors %}<div class="validation-error">{{ form.non_field_errors|first }}</div>{% endif %}
+    <div><button type="submit" class="btn-primary w-full text-lg py-3">Send Message</button></div>
+</form>

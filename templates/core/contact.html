@@ -1,0 +1,32 @@
+{% extends 'base/base.html' %}
+{% block title %}Contact - Django + HTMX{% endblock %}
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-2">
+        <div class="card">
+            <div class="card-header"><h2 class="text-2xl font-bold text-gray-800">Submit an Inquiry</h2></div>
+            <div class="card-body" id="contact-form-container">
+                {% include 'partials/contact_form.html' %}
+            </div>
+        </div>
+    </div>
+    <div class="space-y-6">
+        {% if recent_contacts %}
+        <div class="card">
+            <div class="card-header"><h5 class="text-lg font-semibold text-gray-800">Recent Inquiries</h5></div>
+            <div class="card-body">
+                <ul class="space-y-3">
+                    {% for contact in recent_contacts %}
+                    <li class="text-sm border-l-4 p-2 {% if contact.is_resolved %}border-green-400 bg-green-50{% else %}border-yellow-400 bg-yellow-50{% endif %}">
+                        <p class="font-semibold">{{ contact.subject|truncatechars:30 }}</p>
+                        <p class="text-gray-600">From: {{ contact.name }} - {{ contact.created_at|timesince }} ago</p>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <a href="{% url 'core:contact_list' %}" class="btn-secondary text-sm mt-4 block text-center">View All</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

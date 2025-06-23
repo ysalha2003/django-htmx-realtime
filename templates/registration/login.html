@@ -1,0 +1,22 @@
+{% extends 'base/base.html' %}
+{% block title %}Sign In{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto">
+    <div class="card">
+        <div class="card-header text-center"><h2 class="text-2xl font-bold text-gray-800">Sign In</h2></div>
+        <div class="card-body">
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+                <div><label class="form-label">Username</label><input type="text" name="username" class="form-input"></div>
+                <div><label class="form-label">Password</label><input type="password" name="password" class="form-input"></div>
+                {% if form.errors %}<p class="text-red-500 text-sm">Your username and password didn't match. Please try again.</p>{% endif %}
+                <button type="submit" class="btn-primary w-full text-lg py-3">Login</button>
+            </form>
+        </div>
+        <div class="card-body border-t text-center">
+            <a href="{% url 'accounts:password_reset' %}" class="text-sm text-blue-600 hover:underline">Forgot password?</a>
+            <p class="text-gray-600 mt-2">Don't have an account? <a href="{% url 'accounts:register' %}" class="text-blue-600 hover:underline">Sign up</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

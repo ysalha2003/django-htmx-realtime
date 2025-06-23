@@ -1,0 +1,22 @@
+{% extends 'base/base.html' %}
+{% block title %}Home - Django + HTMX Platform{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="text-center mb-12">
+        <h1 class="text-5xl font-bold mb-6"><span class="text-gradient">Server-Driven</span> Web Application</h1>
+        <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">A boilerplate for modern web apps with Django, HTMX, and Tailwind CSS, featuring real-time validation and a server-centric architecture.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div class="card text-center p-6"><h3 class="text-3xl font-bold text-blue-600">{{ total_contacts }}</h3><h6 class="text-lg font-semibold text-gray-700">Total Inquiries</h6></div>
+        <div class="card text-center p-6"><h3 class="text-3xl font-bold text-green-600">{{ resolved_contacts }}</h3><h6 class="text-lg font-semibold text-gray-700">Resolved Inquiries</h6></div>
+        <div class="card text-center p-6"><h3 class="text-3xl font-bold text-purple-600">{{ newsletter_subscribers }}</h3><h6 class="text-lg font-semibold text-gray-700">Active Subscribers</h6></div>
+    </div>
+    <div class="card bg-gradient-to-r from-blue-600 to-purple-600 text-white mb-12">
+        <div class="card-body text-center" id="newsletter-section">
+            <h3 class="text-2xl font-bold mb-4">Subscribe for Updates</h3>
+            <p class="text-blue-100 mb-6">Receive project updates and release notes.</p>
+            {% include 'partials/newsletter_form.html' %}
+        </div>
+    </div>
+</div>
+{% endblock %}

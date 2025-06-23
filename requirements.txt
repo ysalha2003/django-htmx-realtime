@@ -1,0 +1,8 @@
+Django
+python-decouple
+Pillow
+django-debug-toolbar
+channels
+channels-redis
+redis
+daphne

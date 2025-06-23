@@ -1,0 +1,9 @@
+<form hx-post="{% url 'core:newsletter_subscribe' %}" hx-target="#newsletter-section" hx-swap="innerHTML" class="max-w-md mx-auto" novalidate>
+    {% csrf_token %}
+    <div class="flex gap-4">
+        {{ newsletter_form.email }}
+        <button type="submit" class="btn-secondary bg-white text-blue-600 hover:bg-gray-100">Subscribe</button>
+    </div>
+    <div id="newsletter-validation" class="text-center mt-2 text-white"></div>
+    {% if newsletter_form.email.errors %}<div class="validation-error mt-2 text-white">{{ newsletter_form.email.errors|first }}</div>{% endif %}
+</form>

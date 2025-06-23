@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  /* Custom button styles */
+  .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200 ease-in-out transform hover:scale-105;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition duration-200;
+  }
+
+  /* Form styles */
+  .form-input {
+    @apply block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition duration-200;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden;
+  }
+
+  .card-header {
+    @apply px-6 py-4 border-b border-gray-200 bg-gray-50;
+  }
+
+  .card-body {
+    @apply px-6 py-4;
+  }
+
+  /* Navigation styles */
+  .nav-link {
+    @apply text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition duration-200;
+  }
+
+  .nav-link.active {
+    @apply text-white bg-gray-900;
+  }
+
+  /* Validation styles */
+  .validation-success {
+    @apply text-green-600 text-sm mt-1 flex items-center animate-pulse;
+  }
+
+  .validation-error {
+    @apply text-red-600 text-sm mt-1 flex items-center animate-pulse;
+  }
+
+  .validation-warning {
+    @apply text-yellow-600 text-sm mt-1 flex items-center animate-pulse;
+  }
+
+  /* HTMX loading styles */
+  .htmx-indicator {
+    @apply opacity-0 transition-opacity duration-300;
+  }
+
+  .htmx-request .htmx-indicator {
+    @apply opacity-100;
+  }
+
+  /* Password strength meter */
+  .password-strength-bar {
+    @apply h-2 bg-gray-200 rounded-full overflow-hidden mt-2;
+  }
+
+  .password-strength-fill {
+    @apply h-full transition-all duration-300 rounded-full;
+  }
+
+  .strength-weak { @apply bg-red-500 w-1/5; }
+  .strength-fair { @apply bg-yellow-500 w-2/5; }
+  .strength-good { @apply bg-blue-500 w-3/5; }
+  .strength-strong { @apply bg-green-500 w-4/5; }
+  .strength-very-strong { @apply bg-green-600 w-full; }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
+  }
+
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+}
