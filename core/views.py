@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -5,134 +6,252 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
 from django.db.models import Q
-from .forms import ContactForm, NewsletterForm
-from .models import Contact, NewsletterSubscription, User
-import re
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.core.exceptions import ValidationError
 
-def is_htmx_request(request):
-    return request.headers.get('HX-Request', False)
+from .forms import ContactForm, NewsletterForm
+from .models import Contact, NewsletterSubscription
+from .utils import (
+    is_htmx_request, validate_email_format, validate_name, 
+    validate_subject, validate_message, validate_newsletter_email,
+    render_validation_response, log_validation_attempt, get_contact_stats
+)
+
+logger = logging.getLogger(__name__)
 
 def home(request):
-    context = {
-        'total_contacts': Contact.objects.count(),
-        'resolved_contacts': Contact.objects.filter(is_resolved=True).count(),
-        'newsletter_subscribers': NewsletterSubscription.objects.filter(is_active=True).count(),
-        'newsletter_form': NewsletterForm()
-    }
-    return render(request, 'core/home.html', context)
+    """Home page with dashboard stats"""
+    try:
+        context = get_contact_stats()
+        context['newsletter_form'] = NewsletterForm()
+        return render(request, 'core/home.html', context)
+    except Exception as e:
+        logger.error(f"Error loading home page: {e}")
+        # Fallback context
+        context = {
+            'total_contacts': 0,
+            'resolved_contacts': 0,
+            'newsletter_subscribers': 0,
+            'newsletter_form': NewsletterForm()
+        }
+        return render(request, 'core/home.html', context)
 
 def contact_view(request):
+    """Handle contact form submission with improved error handling"""
     if request.method == 'POST':
         form = ContactForm(request.POST)
-        if form.is_valid():
-            contact = form.save()
-            messages.success(request, f'Inquiry from {contact.name} submitted. Ref: #{contact.id}.')
+        try:
+            if form.is_valid():
+                contact = form.save()
+                logger.info(f"New contact created: {contact.id} from {contact.email}")
+                messages.success(request, f'Inquiry from {contact.name} submitted. Ref: #{contact.id}.')
+                
+                if is_htmx_request(request):
+                    return render(request, 'partials/contact_success.html', {'contact': contact})
+                return redirect('core:contact')
+            else:
+                logger.warning(f"Invalid contact form submission: {form.errors}")
+                if is_htmx_request(request):
+                    return render(request, 'partials/contact_form.html', {'form': form})
+        except Exception as e:
+            logger.error(f"Error processing contact form: {e}")
+            messages.error(request, 'An error occurred while submitting your message. Please try again.')
             if is_htmx_request(request):
-                return render(request, 'partials/contact_success.html', {'contact': contact})
-            return redirect('core:contact')
-        elif is_htmx_request(request):
-            return render(request, 'partials/contact_form.html', {'form': form})
+                return render(request, 'partials/contact_form.html', {'form': form})
     else:
         form = ContactForm()
-    context = {'form': form, 'recent_contacts': Contact.objects.all()[:5] if request.user.is_staff else None}
+
+    # Get recent contacts for staff users with optimized query
+    recent_contacts = None
+    if request.user.is_staff:
+        try:
+            recent_contacts = Contact.objects.select_related('resolved_by').order_by('-created_at')[:5]
+        except Exception as e:
+            logger.error(f"Error fetching recent contacts: {e}")
+
+    context = {
+        'form': form, 
+        'recent_contacts': recent_contacts
+    }
     return render(request, 'core/contact.html', context)
 
 def newsletter_subscribe(request):
+    """Handle newsletter subscription with improved validation"""
     if request.method == 'POST':
         form = NewsletterForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Subscription successful. Thank you!')
-            if is_htmx_request(request):
-                return render(request, 'partials/newsletter_success.html')
-        else:
-            messages.warning(request, 'This email address is already subscribed or invalid.')
+        try:
+            if form.is_valid():
+                subscription = form.save()
+                logger.info(f"New newsletter subscription: {subscription.email}")
+                messages.success(request, 'Subscription successful. Thank you!')
+                
+                if is_htmx_request(request):
+                    return render(request, 'partials/newsletter_success.html')
+            else:
+                logger.warning(f"Invalid newsletter form: {form.errors}")
+                messages.warning(request, 'This email address is already subscribed or invalid.')
+                if is_htmx_request(request):
+                    return render(request, 'partials/newsletter_form.html', {'newsletter_form': form})
+        except Exception as e:
+            logger.error(f"Error processing newsletter subscription: {e}")
+            messages.error(request, 'An error occurred. Please try again.')
             if is_htmx_request(request):
                 return render(request, 'partials/newsletter_form.html', {'newsletter_form': form})
+    
     return redirect('core:home')
 
 @login_required
 def contact_list_view(request):
+    """Display contact list with optimized queries and improved filtering"""
     if not request.user.is_staff:
         messages.error(request, 'You do not have permission to view this page.')
         return redirect('core:home')
 
-    query = request.GET.get('q', '')
-    status = request.GET.get('status', '')
-    contacts_list = Contact.objects.all()
-    if query:
-        contacts_list = contacts_list.filter(Q(name__icontains=query) | Q(email__icontains=query) | Q(subject__icontains=query))
-    if status == 'resolved':
-        contacts_list = contacts_list.filter(is_resolved=True)
-    elif status == 'pending':
-        contacts_list = contacts_list.filter(is_resolved=False)
+    try:
+        query = request.GET.get('q', '').strip()
+        status = request.GET.get('status', '')
+        
+        # Start with optimized base query
+        contacts_list = Contact.objects.select_related('resolved_by').order_by('-created_at')
+        
+        # Apply filters
+        if query:
+            contacts_list = contacts_list.filter(
+                Q(name__icontains=query) | 
+                Q(email__icontains=query) | 
+                Q(subject__icontains=query)
+            )
+        
+        if status == 'resolved':
+            contacts_list = contacts_list.filter(is_resolved=True)
+        elif status == 'pending':
+            contacts_list = contacts_list.filter(is_resolved=False)
 
-    paginator = Paginator(contacts_list, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+        # Paginate results
+        paginator = Paginator(contacts_list, 10)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
 
-    context = {'contacts': page_obj, 'query': query, 'status': status}
-    return render(request, 'core/contact_list.html', context)
+        context = {
+            'contacts': page_obj, 
+            'query': query, 
+            'status': status
+        }
+        return render(request, 'core/contact_list.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error loading contact list: {e}")
+        messages.error(request, 'Error loading contacts. Please try again.')
+        return redirect('core:home')
 
-# API endpoint for pending contacts count
 @login_required
+@require_http_methods(["GET"])
 def api_pending_contacts_count(request):
     """API endpoint to get current pending contacts count"""
     if not request.user.is_staff:
         return JsonResponse({'error': 'Permission denied'}, status=403)
 
-    pending_count = Contact.objects.filter(is_resolved=False).count()
-    total_count = Contact.objects.count()
+    try:
+        pending_count = Contact.objects.filter(is_resolved=False).count()
+        total_count = Contact.objects.count()
 
-    return JsonResponse({
-        'pending_count': pending_count,
-        'total_count': total_count
-    })
+        return JsonResponse({
+            'pending_count': pending_count,
+            'total_count': total_count
+        })
+    except Exception as e:
+        logger.error(f"Error getting pending contacts count: {e}")
+        return JsonResponse({'error': 'Internal server error'}, status=500)
 
+# Validation endpoints with improved error handling
 @require_http_methods(["POST"])
 def validate_name(request):
+    """Validate name field"""
     name = request.POST.get('name', '').strip()
-    if not name: return HttpResponse('')
-    if len(name) < 2:
-        return render(request, 'partials/validation_error.html', {'message': 'Name is too short'})
-    if not re.match(r'^[a-zA-Z\s]+$', name):
-        return render(request, 'partials/validation_error.html', {'message': 'Name can only contain letters'})
-    return render(request, 'partials/validation_success.html', {'message': 'Name looks good!'})
+    if not name:
+        return HttpResponse('')
+    
+    try:
+        is_valid, message = validate_name(name)
+        log_validation_attempt('name', name, is_valid, request)
+        
+        template_type = 'success' if is_valid else 'error'
+        return render(request, *render_validation_response(template_type, message))
+    except Exception as e:
+        logger.error(f"Error validating name: {e}")
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
 
 @require_http_methods(["POST"])
 def validate_email(request):
+    """Validate email field for contact form"""
     email = request.POST.get('email', '').strip()
-    if not email: return HttpResponse('')
-    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if not re.match(email_regex, email):
-        return render(request, 'partials/validation_error.html', {'message': 'Please enter a valid email address'})
-    if Contact.objects.filter(email=email).exists():
-        return render(request, 'partials/validation_warning.html', {'message': 'This email has contacted us before'})
-    return render(request, 'partials/validation_success.html', {'message': 'Email is valid!'})
+    if not email:
+        return HttpResponse('')
+    
+    try:
+        is_valid, message = validate_email_format(email)
+        
+        # Check if email has contacted before (warning, not error)
+        if is_valid and Contact.objects.filter(email=email).exists():
+            template_type = 'warning'
+            message = 'This email has contacted us before'
+        else:
+            template_type = 'success' if is_valid else 'error'
+        
+        log_validation_attempt('email', email, is_valid, request)
+        return render(request, *render_validation_response(template_type, message))
+    except Exception as e:
+        logger.error(f"Error validating email: {e}")
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
 
 @require_http_methods(["POST"])
 def validate_subject(request):
+    """Validate subject field"""
     subject = request.POST.get('subject', '').strip()
-    if not subject: return HttpResponse('')
-    if len(subject) < 5:
-        return render(request, 'partials/validation_error.html', {'message': 'Subject must be at least 5 characters'})
-    return render(request, 'partials/validation_success.html', {'message': 'Subject looks good!'})
+    if not subject:
+        return HttpResponse('')
+    
+    try:
+        is_valid, message = validate_subject(subject)
+        log_validation_attempt('subject', subject, is_valid, request)
+        
+        template_type = 'success' if is_valid else 'error'
+        return render(request, *render_validation_response(template_type, message))
+    except Exception as e:
+        logger.error(f"Error validating subject: {e}")
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
 
 @require_http_methods(["POST"])
 def validate_message(request):
+    """Validate message field"""
     message = request.POST.get('message', '').strip()
-    if not message: return HttpResponse('')
-    if len(message) < 10:
-        return render(request, 'partials/validation_error.html', {'message': 'Message must be at least 10 characters'})
-    return render(request, 'partials/validation_success.html', {'message': f'Looks good! ({len(message.split())} words)'})
+    if not message:
+        return HttpResponse('')
+    
+    try:
+        is_valid, msg = validate_message(message)
+        log_validation_attempt('message', message, is_valid, request)
+        
+        template_type = 'success' if is_valid else 'error'
+        return render(request, *render_validation_response(template_type, msg))
+    except Exception as e:
+        logger.error(f"Error validating message: {e}")
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
 
 @require_http_methods(["POST"])
 def validate_newsletter_email(request):
+    """Validate email for newsletter subscription"""
     email = request.POST.get('email', '').strip()
-    if not email: return HttpResponse('')
-    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if not re.match(email_regex, email):
-        return render(request, 'partials/validation_error.html', {'message': 'Please enter a valid email address'})
-    if NewsletterSubscription.objects.filter(email=email).exists():
-        return render(request, 'partials/validation_warning.html', {'message': 'This email is already subscribed'})
-    return render(request, 'partials/validation_success.html', {'message': 'Email is ready for subscription!'})
+    if not email:
+        return HttpResponse('')
+    
+    try:
+        is_valid, message = validate_newsletter_email(email)
+        log_validation_attempt('newsletter_email', email, is_valid, request)
+        
+        template_type = 'success' if is_valid else 'warning'
+        return render(request, *render_validation_response(template_type, message))
+    except Exception as e:
+        logger.error(f"Error validating newsletter email: {e}")
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
