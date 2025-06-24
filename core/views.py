@@ -164,7 +164,7 @@ def api_pending_contacts_count(request):
         logger.error(f"Error getting pending contacts count: {e}")
         return JsonResponse({'error': 'Internal server error'}, status=500)
 
-# Validation endpoints with improved error handling
+# Fixed validation endpoints with proper error handling
 @require_http_methods(["POST"])
 def validate_name(request):
     """Validate name field"""
@@ -176,11 +176,13 @@ def validate_name(request):
         is_valid, message = validate_name(name)
         log_validation_attempt('name', name, is_valid, request)
         
-        template_type = 'success' if is_valid else 'error'
-        return render(request, *render_validation_response(template_type, message))
+        if is_valid:
+            return render(request, 'partials/validation_success.html', {'message': message})
+        else:
+            return render(request, 'partials/validation_error.html', {'message': message})
     except Exception as e:
         logger.error(f"Error validating name: {e}")
-        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error occurred'})
 
 @require_http_methods(["POST"])
 def validate_email(request):
@@ -194,16 +196,15 @@ def validate_email(request):
         
         # Check if email has contacted before (warning, not error)
         if is_valid and Contact.objects.filter(email=email).exists():
-            template_type = 'warning'
-            message = 'This email has contacted us before'
+            return render(request, 'partials/validation_warning.html', {'message': 'This email has contacted us before'})
+        elif is_valid:
+            return render(request, 'partials/validation_success.html', {'message': message})
         else:
-            template_type = 'success' if is_valid else 'error'
+            return render(request, 'partials/validation_error.html', {'message': message})
         
-        log_validation_attempt('email', email, is_valid, request)
-        return render(request, *render_validation_response(template_type, message))
     except Exception as e:
         logger.error(f"Error validating email: {e}")
-        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error occurred'})
 
 @require_http_methods(["POST"])
 def validate_subject(request):
@@ -214,13 +215,14 @@ def validate_subject(request):
     
     try:
         is_valid, message = validate_subject(subject)
-        log_validation_attempt('subject', subject, is_valid, request)
         
-        template_type = 'success' if is_valid else 'error'
-        return render(request, *render_validation_response(template_type, message))
+        if is_valid:
+            return render(request, 'partials/validation_success.html', {'message': message})
+        else:
+            return render(request, 'partials/validation_error.html', {'message': message})
     except Exception as e:
         logger.error(f"Error validating subject: {e}")
-        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error occurred'})
 
 @require_http_methods(["POST"])
 def validate_message(request):
@@ -231,13 +233,14 @@ def validate_message(request):
     
     try:
         is_valid, msg = validate_message(message)
-        log_validation_attempt('message', message, is_valid, request)
         
-        template_type = 'success' if is_valid else 'error'
-        return render(request, *render_validation_response(template_type, msg))
+        if is_valid:
+            return render(request, 'partials/validation_success.html', {'message': msg})
+        else:
+            return render(request, 'partials/validation_error.html', {'message': msg})
     except Exception as e:
         logger.error(f"Error validating message: {e}")
-        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error occurred'})
 
 @require_http_methods(["POST"])
 def validate_newsletter_email(request):
@@ -248,10 +251,11 @@ def validate_newsletter_email(request):
     
     try:
         is_valid, message = validate_newsletter_email(email)
-        log_validation_attempt('newsletter_email', email, is_valid, request)
         
-        template_type = 'success' if is_valid else 'warning'
-        return render(request, *render_validation_response(template_type, message))
+        if is_valid:
+            return render(request, 'partials/validation_success.html', {'message': message})
+        else:
+            return render(request, 'partials/validation_warning.html', {'message': message})
     except Exception as e:
         logger.error(f"Error validating newsletter email: {e}")
-        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error occurred'})
