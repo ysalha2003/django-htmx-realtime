@@ -55,3 +55,4 @@ staticfiles/
 
 # Debug toolbar
 .debug_toolbar/
+static/css/src/output.css
