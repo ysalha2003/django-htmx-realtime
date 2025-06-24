@@ -30,11 +30,7 @@
                                class="form-input" 
                                placeholder="Enter your username"
                                required
-                               autocomplete="username"
-                               hx-post="{% url 'accounts:validate_login_username' %}"
-                               hx-trigger="keyup changed delay:500ms"
-                               hx-target="#username-validation"
-                               hx-swap="innerHTML">
+                               autocomplete="username">
                         <div id="username-validation" class="validation-container"></div>
                     </div>
                     
@@ -61,6 +57,7 @@
                                 </svg>
                             </button>
                         </div>
+                        <div id="password-validation" class="validation-container"></div>
                     </div>
                     
                     <!-- Remember Me & Forgot Password -->
@@ -155,10 +152,13 @@
 </div>
 
 <script>
-// Enhanced login form interactions with validation
+// Enhanced login form interactions with comprehensive validation
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
     if (!form) return;
+    
+    // Set up validation for login form
+    setupFieldValidation();
     
     // Add loading state to button on submit
     form.addEventListener('submit', function(e) {
@@ -169,6 +169,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Basic validation
         if (!username || !password) {
             e.preventDefault();
+            if (!username) {
+                showLocalValidation('username-validation', 'error', 'Please enter your username');
+            }
+            if (!password) {
+                showLocalValidation('password-validation', 'error', 'Please enter your password');
+            }
             if (window.toastManager) {
                 window.toastManager.error('Please enter both username and password');
             }
@@ -201,6 +207,9 @@ document.addEventListener('DOMContentLoaded', function() {
     inputs.forEach(input => {
         input.addEventListener('focus', function() {
             this.closest('.form-group')?.classList.add('focused');
+            // Clear any validation messages on focus
+            const validationId = this.name + '-validation';
+            clearLocalValidation(validationId);
         });
         
         input.addEventListener('blur', function() {
@@ -208,25 +217,82 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Username validation feedback
-    const usernameInput = form.querySelector('input[name="username"]');
-    if (usernameInput) {
-        usernameInput.addEventListener('input', function() {
-            const value = this.value.trim();
-            if (value.length > 0 && value.length < 3) {
-                const validationContainer = document.getElementById('username-validation');
-                if (validationContainer) {
-                    validationContainer.innerHTML = `
-                        <div class="validation-message validation-warning">
-                            <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
-                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                            </svg>
-                            <span>Username must be at least 3 characters</span>
-                        </div>
-                    `;
+    function setupFieldValidation() {
+        // Username validation
+        const usernameField = form.querySelector('input[name="username"]');
+        if (usernameField) {
+            usernameField.setAttribute('hx-post', '{% url "accounts:validate_login_username" %}');
+            usernameField.setAttribute('hx-trigger', 'keyup changed delay:500ms');
+            usernameField.setAttribute('hx-target', '#username-validation');
+            usernameField.setAttribute('hx-swap', 'innerHTML');
+            
+            // Local validation - Fix the issue with minimum character validation
+            usernameField.addEventListener('input', function() {
+                const value = this.value.trim();
+                
+                // Clear any existing validation first
+                clearLocalValidation('username-validation');
+                
+                // Only show local validation for empty or very short usernames
+                if (value.length === 0) {
+                    // Don't show error for empty field while typing
+                    return;
+                } else if (value.length < 3) {
+                    showLocalValidation('username-validation', 'warning', `Username too short (${value.length}/3 characters minimum)`);
                 }
-            }
-        });
+                // For 3+ characters, let HTMX handle the server validation
+            });
+            
+            // Clear validation when user starts typing after an error
+            usernameField.addEventListener('keydown', function() {
+                const container = document.getElementById('username-validation');
+                if (container && container.innerHTML.includes('too short')) {
+                    clearLocalValidation('username-validation');
+                }
+            });
+        }
+        
+        // Password validation
+        const passwordField = form.querySelector('input[name="password"]');
+        if (passwordField) {
+            passwordField.addEventListener('input', function() {
+                const value = this.value.trim();
+                if (value.length === 0) {
+                    clearLocalValidation('password-validation');
+                } else if (value.length < 8) {
+                    showLocalValidation('password-validation', 'warning', 'Password should be at least 8 characters');
+                } else {
+                    clearLocalValidation('password-validation');
+                }
+            });
+        }
+    }
+    
+    function showLocalValidation(containerId, type, message) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const iconMap = {
+            success: '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>',
+            error: '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>',
+            warning: '<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
+        };
+        
+        container.innerHTML = `
+            <div class="validation-message validation-${type}">
+                <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
+                    ${iconMap[type]}
+                </svg>
+                <span>${message}</span>
+            </div>
+        `;
+    }
+    
+    function clearLocalValidation(containerId) {
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = '';
+        }
     }
 });
 
