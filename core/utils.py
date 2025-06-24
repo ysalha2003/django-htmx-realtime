@@ -1,8 +1,9 @@
 """
-Utility functions for the core app
+Enhanced utility functions for the core app with comprehensive validation
 """
 import re
 import logging
+from urllib.parse import urlparse
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.contrib.auth.models import User
@@ -10,10 +11,12 @@ from .models import Contact, NewsletterSubscription
 
 logger = logging.getLogger(__name__)
 
-# Validation Constants
+# Enhanced validation constants
 EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 NAME_REGEX = r'^[a-zA-Z\s\-\'\.]+$'
 USERNAME_REGEX = r'^[a-zA-Z0-9_.-]+$'
+PHONE_REGEX = r'^\+?[\d\s\-\(\)\.]{10,17}$'
+PHONE_CLEAN_REGEX = r'[\D]'
 
 # Response Templates
 VALIDATION_TEMPLATES = {
@@ -39,30 +42,53 @@ def render_validation_response(template_type, message, request=None):
     return template, context
 
 def validate_email_format(email):
-    """Validate email format"""
+    """Validate email format with enhanced checks"""
     if not email:
         return False, "Email is required"
+    
+    if len(email) > 254:
+        return False, "Email address is too long"
     
     if not re.match(EMAIL_REGEX, email):
         return False, "Please enter a valid email address"
     
+    # Additional checks for common mistakes
+    if email.count('@') != 1:
+        return False, "Email must contain exactly one @ symbol"
+    
+    local, domain = email.split('@')
+    if len(local) > 64:
+        return False, "Email address is too long"
+    
+    if domain.startswith('.') or domain.endswith('.'):
+        return False, "Invalid domain format"
+    
     return True, "Email format is valid"
 
-def validate_name(name, min_length=2, field_name="Name"):
-    """Validate name fields"""
+def validate_name(name, min_length=2, max_length=100, field_name="Name"):
+    """Enhanced name validation"""
     if not name:
         return False, f"{field_name} is required"
     
-    if len(name.strip()) < min_length:
+    name = name.strip()
+    
+    if len(name) < min_length:
         return False, f"{field_name} must be at least {min_length} characters long"
     
-    if not re.match(NAME_REGEX, name.strip()):
+    if len(name) > max_length:
+        return False, f"{field_name} must be less than {max_length} characters"
+    
+    if not re.match(NAME_REGEX, name):
         return False, f"{field_name} can only contain letters, spaces, hyphens, apostrophes, and periods"
+    
+    # Check for suspicious patterns
+    if len([c for c in name if c.isalpha()]) < 2:
+        return False, f"{field_name} must contain at least 2 letters"
     
     return True, f"{field_name} looks good!"
 
 def validate_username(username):
-    """Validate username format and availability"""
+    """Enhanced username validation"""
     if not username:
         return False, "Username is required"
     
@@ -71,8 +97,16 @@ def validate_username(username):
     if len(username) < 3:
         return False, "Username must be at least 3 characters long"
     
+    if len(username) > 30:
+        return False, "Username must be less than 30 characters"
+    
     if not re.match(USERNAME_REGEX, username):
         return False, "Username can only contain letters, numbers, dots, hyphens, and underscores"
+    
+    # Check for reserved usernames
+    reserved_usernames = ['admin', 'root', 'user', 'test', 'guest', 'administrator']
+    if username.lower() in reserved_usernames:
+        return False, "This username is reserved. Please choose another one"
     
     if User.objects.filter(username=username).exists():
         return False, "This username is already taken"
@@ -101,12 +135,12 @@ def validate_newsletter_email(email):
         return False, message
     
     if NewsletterSubscription.objects.filter(email=email, is_active=True).exists():
-        return False, "This email is already subscribed"
+        return False, "This email is already subscribed to our newsletter"
     
     return True, "Email is ready for subscription!"
 
 def validate_password_strength(password):
-    """Validate password strength and return feedback"""
+    """Enhanced password strength validation"""
     if not password:
         return 0, ["Password is required"]
     
@@ -143,10 +177,17 @@ def validate_password_strength(password):
     else:
         feedback.append("One special character")
     
-    return strength, feedback
+    # Additional checks for very strong passwords
+    if len(password) >= 12:
+        strength = min(strength + 0.5, 5)
+    
+    if not any(common in password.lower() for common in ['password', '123456', 'qwerty', 'admin']):
+        strength = min(strength + 0.5, 5)
+    
+    return int(strength), feedback
 
-def validate_subject(subject, min_length=5):
-    """Validate contact subject"""
+def validate_subject(subject, min_length=5, max_length=200):
+    """Enhanced subject validation"""
     if not subject:
         return False, "Subject is required"
     
@@ -155,10 +196,17 @@ def validate_subject(subject, min_length=5):
     if len(subject) < min_length:
         return False, f"Subject must be at least {min_length} characters"
     
+    if len(subject) > max_length:
+        return False, f"Subject must be less than {max_length} characters"
+    
+    # Check for meaningful content
+    if subject.count(' ') == 0 and len(subject) > 20:
+        return False, "Subject should contain spaces between words"
+    
     return True, "Subject looks good!"
 
-def validate_message(message, min_length=10):
-    """Validate contact message"""
+def validate_message(message, min_length=10, max_length=2000):
+    """Enhanced message validation"""
     if not message:
         return False, "Message is required"
     
@@ -167,17 +215,107 @@ def validate_message(message, min_length=10):
     if len(message) < min_length:
         return False, f"Message must be at least {min_length} characters"
     
+    if len(message) > max_length:
+        return False, f"Message must be less than {max_length} characters"
+    
     word_count = len(message.split())
-    return True, f"Looks good! ({word_count} words)"
+    
+    if word_count < 3:
+        return False, "Message should contain at least 3 words"
+    
+    return True, f"Message looks good! ({word_count} words)"
+
+def validate_phone_number(phone):
+    """Validate phone number format"""
+    if not phone:
+        return False, "Phone number is required"
+    
+    phone = phone.strip()
+    
+    # Basic format check
+    if not re.match(PHONE_REGEX, phone):
+        return False, "Please enter a valid phone number (e.g., +1-234-567-8900)"
+    
+    # Clean phone number for digit counting
+    clean_phone = re.sub(PHONE_CLEAN_REGEX, '', phone)
+    
+    if len(clean_phone) < 10:
+        return False, "Phone number must contain at least 10 digits"
+    
+    if len(clean_phone) > 15:
+        return False, "Phone number is too long"
+    
+    # Check for obvious fake numbers
+    if clean_phone in ['0000000000', '1111111111', '1234567890']:
+        return False, "Please enter a valid phone number"
+    
+    return True, "Phone number format is valid"
+
+def validate_website(website):
+    """Validate website URL format"""
+    if not website:
+        return False, "Website URL is required"
+    
+    website = website.strip()
+    
+    # Add protocol if missing
+    if not website.startswith(('http://', 'https://')):
+        website = 'https://' + website
+    
+    try:
+        parsed = urlparse(website)
+        
+        if not parsed.netloc:
+            return False, "Please enter a valid website URL"
+        
+        if not parsed.scheme in ['http', 'https']:
+            return False, "Website URL must use http or https"
+        
+        # Basic domain validation
+        domain_parts = parsed.netloc.split('.')
+        if len(domain_parts) < 2:
+            return False, "Please enter a complete domain name"
+        
+        if any(len(part) == 0 for part in domain_parts):
+            return False, "Invalid domain format"
+        
+        return True, "Website URL looks good!"
+        
+    except Exception:
+        return False, "Please enter a valid website URL"
+
+def validate_location(location, max_length=100):
+    """Validate location field"""
+    if not location:
+        return False, "Location is required"
+    
+    location = location.strip()
+    
+    if len(location) < 2:
+        return False, "Location must be at least 2 characters"
+    
+    if len(location) > max_length:
+        return False, f"Location must be less than {max_length} characters"
+    
+    # Allow letters, spaces, commas, hyphens, apostrophes, and periods
+    if not re.match(r'^[a-zA-Z\s,\-\'\.]+$', location):
+        return False, "Location can only contain letters, spaces, commas, hyphens, apostrophes, and periods"
+    
+    # Check for meaningful content
+    if location.replace(' ', '').replace(',', '').replace('-', '') == '':
+        return False, "Please enter a valid location"
+    
+    return True, "Location looks good!"
 
 def log_validation_attempt(field_name, value, is_valid, request=None):
-    """Log validation attempts for monitoring"""
+    """Enhanced validation logging"""
     user_id = request.user.id if request and request.user.is_authenticated else None
     
     logger.info(
         f"Validation attempt - Field: {field_name}, "
         f"Valid: {is_valid}, User: {user_id}, "
-        f"IP: {get_client_ip(request) if request else 'Unknown'}"
+        f"IP: {get_client_ip(request) if request else 'Unknown'}, "
+        f"Length: {len(str(value)) if value else 0}"
     )
 
 def get_client_ip(request):
@@ -224,3 +362,48 @@ def get_contact_stats():
             'pending_contacts': 0,
             'newsletter_subscribers': 0,
         }
+
+def sanitize_input(text, max_length=None):
+    """Sanitize user input"""
+    if not text:
+        return ""
+    
+    # Strip whitespace
+    text = text.strip()
+    
+    # Remove control characters
+    text = ''.join(char for char in text if ord(char) >= 32 or char in '\n\r\t')
+    
+    # Truncate if necessary
+    if max_length and len(text) > max_length:
+        text = text[:max_length]
+    
+    return text
+
+def format_phone_display(phone):
+    """Format phone number for display"""
+    if not phone:
+        return ""
+    
+    # Clean phone number
+    clean = re.sub(r'[\D]', '', phone)
+    
+    # Format US numbers
+    if len(clean) == 10:
+        return f"({clean[:3]}) {clean[3:6]}-{clean[6:]}"
+    elif len(clean) == 11 and clean.startswith('1'):
+        return f"+1 ({clean[1:4]}) {clean[4:7]}-{clean[7:]}"
+    
+    return phone  # Return original if we can't format
+
+def validate_form_security(request):
+    """Basic form security validation"""
+    # Check for suspicious patterns
+    if request.method == 'POST':
+        # Check for script injection attempts
+        for field, value in request.POST.items():
+            if isinstance(value, str) and any(pattern in value.lower() for pattern in ['<script', 'javascript:', 'vbscript:']):
+                logger.warning(f"Potential script injection attempt from {get_client_ip(request)}")
+                return False, "Invalid characters detected in form submission"
+    
+    return True, "Form security check passed"
