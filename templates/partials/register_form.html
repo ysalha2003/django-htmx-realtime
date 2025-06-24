@@ -95,7 +95,17 @@
                     Password
                     <span class="text-red-500 ml-1">*</span>
                 </label>
-                {{ form.password1 }}
+                <div class="relative">
+                    {{ form.password1 }}
+                    <button type="button" 
+                            class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                            onclick="togglePasswordVisibility('{{ form.password1.id_for_label }}', this)">
+                        <svg class="h-5 w-5 text-gray-400 hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                    </button>
+                </div>
                 <div id="password-validation" class="validation-container"></div>
                 {% if form.password1.errors %}
                     <div class="validation-message validation-error">
@@ -113,7 +123,17 @@
                     Confirm Password
                     <span class="text-red-500 ml-1">*</span>
                 </label>
-                {{ form.password2 }}
+                <div class="relative">
+                    {{ form.password2 }}
+                    <button type="button" 
+                            class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                            onclick="togglePasswordVisibility('{{ form.password2.id_for_label }}', this)">
+                        <svg class="h-5 w-5 text-gray-400 hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                    </button>
+                </div>
                 <div id="password2-validation" class="validation-container"></div>
                 {% if form.password2.errors %}
                     <div class="validation-message validation-error">
@@ -161,15 +181,24 @@
 </div>
 
 <script>
-// Enhanced registration form interactions
+// Enhanced registration form interactions with comprehensive validation
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('#register-form-container form');
     if (!form) return;
+    
+    // Set up HTMX validation for all fields
+    setupFieldValidation();
     
     // Add loading state to button on submit
     form.addEventListener('submit', function(e) {
         const button = form.querySelector('button[type="submit"]');
         if (button && !button.disabled) {
+            // Validate all required fields before submission
+            if (!validateAllRequiredFields()) {
+                e.preventDefault();
+                return;
+            }
+            
             button.classList.add('btn-loading');
             button.disabled = true;
             
@@ -181,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Enhanced validation feedback for registration
+    // Enhanced input interactions
     const inputs = form.querySelectorAll('.form-input');
     inputs.forEach(input => {
         input.addEventListener('focus', function() {
@@ -191,16 +220,257 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('blur', function() {
             this.closest('.form-group')?.classList.remove('focused');
         });
+    });
+    
+    function setupFieldValidation() {
+        // First name validation
+        const firstNameField = form.querySelector('input[name="first_name"]');
+        if (firstNameField) {
+            firstNameField.setAttribute('hx-post', '{% url "accounts:validate_first_name" %}');
+            firstNameField.setAttribute('hx-trigger', 'keyup changed delay:300ms');
+            firstNameField.setAttribute('hx-target', '#first-name-validation');
+            firstNameField.setAttribute('hx-swap', 'innerHTML');
+            
+            firstNameField.addEventListener('input', function() {
+                const value = this.value.trim();
+                if (value.length > 0 && value.length < 2) {
+                    showLocalValidation('first-name-validation', 'error', 'First name must be at least 2 characters');
+                } else if (value.length >= 2) {
+                    clearLocalValidation('first-name-validation');
+                }
+            });
+        }
         
-        // Real-time validation feedback
-        input.addEventListener('input', function() {
-            const validationContainer = this.closest('.form-group')?.querySelector('.validation-container');
-            if (validationContainer && this.value.length > 0) {
-                validationContainer.classList.add('has-content');
-            } else if (validationContainer) {
-                validationContainer.classList.remove('has-content');
+        // Last name validation
+        const lastNameField = form.querySelector('input[name="last_name"]');
+        if (lastNameField) {
+            lastNameField.setAttribute('hx-post', '{% url "accounts:validate_last_name" %}');
+            lastNameField.setAttribute('hx-trigger', 'keyup changed delay:300ms');
+            lastNameField.setAttribute('hx-target', '#last-name-validation');
+            lastNameField.setAttribute('hx-swap', 'innerHTML');
+            
+            lastNameField.addEventListener('input', function() {
+                const value = this.value.trim();
+                if (value.length > 0 && value.length < 2) {
+                    showLocalValidation('last-name-validation', 'error', 'Last name must be at least 2 characters');
+                } else if (value.length >= 2) {
+                    clearLocalValidation('last-name-validation');
+                }
+            });
+        }
+        
+        // Username validation
+        const usernameField = form.querySelector('input[name="username"]');
+        if (usernameField) {
+            usernameField.setAttribute('hx-post', '{% url "accounts:validate_username" %}');
+            usernameField.setAttribute('hx-trigger', 'keyup changed delay:500ms');
+            usernameField.setAttribute('hx-target', '#username-validation');
+            usernameField.setAttribute('hx-swap', 'innerHTML');
+            
+            usernameField.addEventListener('input', function() {
+                const value = this.value.trim();
+                if (value.length > 0 && value.length < 3) {
+                    showLocalValidation('username-validation', 'error', 'Username must be at least 3 characters');
+                } else if (value.length >= 3) {
+                    clearLocalValidation('username-validation');
+                }
+            });
+        }
+        
+        // Email validation
+        const emailField = form.querySelector('input[name="email"]');
+        if (emailField) {
+            emailField.setAttribute('hx-post', '{% url "accounts:validate_email" %}');
+            emailField.setAttribute('hx-trigger', 'keyup changed delay:500ms');
+            emailField.setAttribute('hx-target', '#email-validation');
+            emailField.setAttribute('hx-swap', 'innerHTML');
+            
+            emailField.addEventListener('input', function() {
+                const value = this.value.trim();
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                
+                if (value.length > 0 && !emailRegex.test(value)) {
+                    showLocalValidation('email-validation', 'error', 'Please enter a valid email address');
+                } else if (emailRegex.test(value)) {
+                    clearLocalValidation('email-validation');
+                }
+            });
+        }
+        
+        // Password validation
+        const passwordField = form.querySelector('input[name="password1"]');
+        if (passwordField) {
+            passwordField.setAttribute('hx-post', '{% url "accounts:validate_password" %}');
+            passwordField.setAttribute('hx-trigger', 'keyup changed delay:300ms');
+            passwordField.setAttribute('hx-target', '#password-validation');
+            passwordField.setAttribute('hx-swap', 'innerHTML');
+            
+            passwordField.addEventListener('input', function() {
+                validatePasswordStrength(this.value);
+                validatePasswordMatch(); // Also check password match
+            });
+        }
+        
+        // Password confirmation validation
+        const password2Field = form.querySelector('input[name="password2"]');
+        if (password2Field) {
+            password2Field.addEventListener('input', validatePasswordMatch);
+        }
+    }
+    
+    function validatePasswordStrength(password) {
+        if (!password) {
+            clearLocalValidation('password-validation');
+            return;
+        }
+        
+        let strength = 0;
+        const feedback = [];
+        
+        if (password.length >= 8) strength++; else feedback.push('At least 8 characters');
+        if (/[A-Z]/.test(password)) strength++; else feedback.push('One uppercase letter');
+        if (/[a-z]/.test(password)) strength++; else feedback.push('One lowercase letter');
+        if (/\d/.test(password)) strength++; else feedback.push('One number');
+        if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++; else feedback.push('One special character');
+        
+        const strengthLabels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
+        const strengthColors = ['text-red-600', 'text-red-500', 'text-amber-500', 'text-blue-500', 'text-green-500', 'text-green-600'];
+        
+        const strengthLabel = strengthLabels[Math.min(strength, 5)];
+        const strengthColor = strengthColors[Math.min(strength, 5)];
+        
+        const container = document.getElementById('password-validation');
+        if (container) {
+            if (strength < 3) {
+                container.innerHTML = `
+                    <div class="validation-message validation-warning">
+                        <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        <div>
+                            <span class="font-medium ${strengthColor}">${strengthLabel}</span>
+                            <div class="text-xs mt-1">Missing: ${feedback.join(', ')}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="validation-message validation-success">
+                        <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="font-medium ${strengthColor}">${strengthLabel} password!</span>
+                    </div>
+                `;
+            }
+        }
+    }
+    
+    function validatePasswordMatch() {
+        const password1 = form.querySelector('input[name="password1"]')?.value || '';
+        const password2 = form.querySelector('input[name="password2"]')?.value || '';
+        
+        if (!password2) {
+            clearLocalValidation('password2-validation');
+            return;
+        }
+        
+        if (password1 !== password2) {
+            showLocalValidation('password2-validation', 'error', 'Passwords do not match');
+        } else {
+            showLocalValidation('password2-validation', 'success', 'Passwords match!');
+        }
+    }
+    
+    function showLocalValidation(containerId, type, message) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const iconMap = {
+            success: '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>',
+            error: '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>',
+            warning: '<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
+        };
+        
+        container.innerHTML = `
+            <div class="validation-message validation-${type}">
+                <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
+                    ${iconMap[type]}
+                </svg>
+                <span>${message}</span>
+            </div>
+        `;
+    }
+    
+    function clearLocalValidation(containerId) {
+        const container = document.getElementById(containerId);
+        if (container && !container.innerHTML.includes('hx-')) {
+            container.innerHTML = '';
+        }
+    }
+    
+    function validateAllRequiredFields() {
+        let isValid = true;
+        const requiredFields = [
+            { name: 'first_name', minLength: 2, message: 'Please enter your first name (at least 2 characters)' },
+            { name: 'last_name', minLength: 2, message: 'Please enter your last name (at least 2 characters)' },
+            { name: 'username', minLength: 3, message: 'Please enter a username (at least 3 characters)' },
+            { name: 'email', validation: 'email', message: 'Please enter a valid email address' },
+            { name: 'password1', minLength: 8, message: 'Please enter a password (at least 8 characters)' },
+            { name: 'password2', validation: 'match', message: 'Please confirm your password' }
+        ];
+        
+        requiredFields.forEach(field => {
+            const input = form.querySelector(`[name="${field.name}"]`);
+            const value = input ? input.value.trim() : '';
+            
+            if (!value) {
+                showLocalValidation(`${field.name.replace('_', '-')}-validation`, 'error', field.message);
+                isValid = false;
+            } else if (field.minLength && value.length < field.minLength) {
+                showLocalValidation(`${field.name.replace('_', '-')}-validation`, 'error', field.message);
+                isValid = false;
+            } else if (field.validation === 'email') {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(value)) {
+                    showLocalValidation(`${field.name.replace('_', '-')}-validation`, 'error', field.message);
+                    isValid = false;
+                }
+            } else if (field.validation === 'match') {
+                const password1 = form.querySelector('[name="password1"]')?.value || '';
+                if (value !== password1) {
+                    showLocalValidation(`${field.name.replace('_', '-')}-validation`, 'error', 'Passwords must match');
+                    isValid = false;
+                }
             }
         });
-    });
+        
+        if (!isValid && window.toastManager) {
+            window.toastManager.error('Please fill in all required fields correctly before submitting.');
+        }
+        
+        return isValid;
+    }
 });
+
+// Password visibility toggle function
+function togglePasswordVisibility(inputId, button) {
+    const input = document.getElementById(inputId);
+    const isPassword = input.type === 'password';
+    
+    input.type = isPassword ? 'text' : 'password';
+    
+    // Update icon
+    const svg = button.querySelector('svg');
+    if (isPassword) {
+        svg.innerHTML = `
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+        `;
+    } else {
+        svg.innerHTML = `
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        `;
+    }
+}
 </script>
