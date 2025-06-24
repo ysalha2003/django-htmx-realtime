@@ -14,8 +14,10 @@
         
         <div class="flex flex-col sm:flex-row gap-3">
             <!-- Email Input -->
-            <div class="flex-1">
+            <div class="flex-1 relative">
                 {{ newsletter_form.email }}
+                <!-- Validation container positioned absolutely -->
+                <div id="newsletter-validation" class="absolute top-full left-0 right-0 mt-1 z-10"></div>
             </div>
             
             <!-- Subscribe Button -->
@@ -31,25 +33,33 @@
             </div>
         </div>
         
-        <!-- Validation Messages -->
-        <div id="newsletter-validation" class="validation-container mt-3 text-center"></div>
-        
+        <!-- Form Errors -->
         {% if newsletter_form.email.errors %}
-            <div class="validation-message validation-error mt-3 text-center text-white">
-                <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
+            <div class="validation-message validation-error mt-3 text-center">
+                <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0 text-white">
                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                 </svg>
-                <span>{{ newsletter_form.email.errors|first }}</span>
+                <span class="text-white">{{ newsletter_form.email.errors|first }}</span>
             </div>
         {% endif %}
+        
+        <!-- Help Text -->
+        <div class="text-center mt-3">
+            <p class="text-xs text-blue-100">
+                Join our newsletter for updates and exclusive content. Unsubscribe anytime.
+            </p>
+        </div>
     </form>
 </div>
 
 <script>
-// Enhanced newsletter form interactions
+// Enhanced newsletter form interactions with real-time validation
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('#newsletter-section form');
     if (!form) return;
+    
+    const emailInput = form.querySelector('input[name="email"]');
+    const validationContainer = document.getElementById('newsletter-validation');
     
     // Add loading state to button on submit
     form.addEventListener('submit', function(e) {
@@ -58,6 +68,19 @@ document.addEventListener('DOMContentLoaded', function() {
             button.classList.add('btn-loading');
             button.disabled = true;
             
+            // Validate email before submitting
+            const email = emailInput.value.trim();
+            if (!email) {
+                e.preventDefault();
+                button.classList.remove('btn-loading');
+                button.disabled = false;
+                
+                if (window.toastManager) {
+                    window.toastManager.error('Please enter your email address to subscribe.');
+                }
+                return;
+            }
+            
             // Re-enable after timeout as fallback
             setTimeout(() => {
                 button.classList.remove('btn-loading');
@@ -65,5 +88,55 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 10000);
         }
     });
+    
+    // Real-time email validation
+    if (emailInput && validationContainer) {
+        let validationTimeout;
+        
+        emailInput.addEventListener('input', function() {
+            clearTimeout(validationTimeout);
+            const email = this.value.trim();
+            
+            if (!email) {
+                validationContainer.innerHTML = '';
+                return;
+            }
+            
+            // Debounced validation
+            validationTimeout = setTimeout(() => {
+                // Basic email format check
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                
+                if (!emailRegex.test(email)) {
+                    validationContainer.innerHTML = `
+                        <div class="validation-message validation-error bg-red-50 border border-red-200 text-red-700">
+                            <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Please enter a valid email address</span>
+                        </div>
+                    `;
+                } else {
+                    validationContainer.innerHTML = `
+                        <div class="validation-message validation-success bg-green-50 border border-green-200 text-green-700">
+                            <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Email format looks good!</span>
+                        </div>
+                    `;
+                }
+            }, 500);
+        });
+        
+        // Clear validation on focus
+        emailInput.addEventListener('focus', function() {
+            this.closest('.form-group')?.classList.add('focused');
+        });
+        
+        emailInput.addEventListener('blur', function() {
+            this.closest('.form-group')?.classList.remove('focused');
+        });
+    }
 });
 </script>
