@@ -139,15 +139,24 @@
 </div>
 
 <script>
-// Enhanced form interactions with improved validation
+// Enhanced form interactions with comprehensive validation
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('#contact-form-container form');
     if (!form) return;
+    
+    // Set up HTMX validation for all fields
+    setupFieldValidation();
     
     // Add loading state to button on submit
     form.addEventListener('submit', function(e) {
         const button = form.querySelector('button[type="submit"]');
         if (button && !button.disabled) {
+            // Validate all required fields before submission
+            if (!validateAllRequiredFields()) {
+                e.preventDefault();
+                return;
+            }
+            
             button.classList.add('btn-loading');
             button.disabled = true;
             
@@ -159,7 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Enhanced validation feedback
+    // Enhanced input interactions
     const inputs = form.querySelectorAll('.form-input');
     inputs.forEach(input => {
         input.addEventListener('focus', function() {
@@ -169,78 +178,153 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('blur', function() {
             this.closest('.form-group')?.classList.remove('focused');
         });
+    });
+    
+    function setupFieldValidation() {
+        // Name field validation
+        const nameField = form.querySelector('input[name="name"]');
+        if (nameField) {
+            nameField.setAttribute('hx-post', '{% url "core:validate_name" %}');
+            nameField.setAttribute('hx-trigger', 'keyup changed delay:500ms');
+            nameField.setAttribute('hx-target', '#name-validation');
+            nameField.setAttribute('hx-swap', 'innerHTML');
+            
+            // Local validation
+            nameField.addEventListener('input', function() {
+                const value = this.value.trim();
+                if (value.length > 0 && value.length < 2) {
+                    showLocalValidation('name-validation', 'error', 'Name must be at least 2 characters');
+                } else if (value.length >= 2) {
+                    clearLocalValidation('name-validation');
+                }
+            });
+        }
         
-        // Real-time character count for message field
-        if (input.getAttribute('name') === 'message') {
-            input.addEventListener('input', function() {
-                const currentLength = this.value.length;
-                const validationContainer = document.getElementById('message-validation');
+        // Email field validation
+        const emailField = form.querySelector('input[name="email"]');
+        if (emailField) {
+            emailField.setAttribute('hx-post', '{% url "core:validate_email" %}');
+            emailField.setAttribute('hx-trigger', 'keyup changed delay:500ms');
+            emailField.setAttribute('hx-target', '#email-validation');
+            emailField.setAttribute('hx-swap', 'innerHTML');
+            
+            // Local validation
+            emailField.addEventListener('input', function() {
+                const value = this.value.trim();
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                
+                if (value.length > 0 && !emailRegex.test(value)) {
+                    showLocalValidation('email-validation', 'error', 'Please enter a valid email address');
+                } else if (emailRegex.test(value)) {
+                    clearLocalValidation('email-validation');
+                }
+            });
+        }
+        
+        // Subject field validation
+        const subjectField = form.querySelector('input[name="subject"]');
+        if (subjectField) {
+            subjectField.setAttribute('hx-post', '{% url "core:validate_subject" %}');
+            subjectField.setAttribute('hx-trigger', 'keyup changed delay:500ms');
+            subjectField.setAttribute('hx-target', '#subject-validation');
+            subjectField.setAttribute('hx-swap', 'innerHTML');
+            
+            // Local validation
+            subjectField.addEventListener('input', function() {
+                const value = this.value.trim();
+                if (value.length > 0 && value.length < 5) {
+                    showLocalValidation('subject-validation', 'error', 'Subject must be at least 5 characters');
+                } else if (value.length >= 5) {
+                    clearLocalValidation('subject-validation');
+                }
+            });
+        }
+        
+        // Message field validation
+        const messageField = form.querySelector('textarea[name="message"]');
+        if (messageField) {
+            messageField.setAttribute('hx-post', '{% url "core:validate_message" %}');
+            messageField.setAttribute('hx-trigger', 'keyup changed delay:500ms');
+            messageField.setAttribute('hx-target', '#message-validation');
+            messageField.setAttribute('hx-swap', 'innerHTML');
+            
+            // Local validation with character count
+            messageField.addEventListener('input', function() {
+                const value = this.value.trim();
+                const currentLength = value.length;
                 
                 if (currentLength > 0 && currentLength < 10) {
                     const remaining = 10 - currentLength;
-                    validationContainer.innerHTML = `
-                        <div class="validation-message validation-warning">
-                            <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
-                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                            </svg>
-                            <span>Need ${remaining} more characters</span>
-                        </div>
-                    `;
+                    showLocalValidation('message-validation', 'warning', `Need ${remaining} more characters (${currentLength}/10)`);
+                } else if (currentLength >= 10) {
+                    showLocalValidation('message-validation', 'success', `Message looks good! (${currentLength} characters)`);
+                } else {
+                    clearLocalValidation('message-validation');
                 }
             });
         }
-        
-        // Enhanced validation for subject field
-        if (input.getAttribute('name') === 'subject') {
-            input.addEventListener('input', function() {
-                const currentLength = this.value.length;
-                const validationContainer = document.getElementById('subject-validation');
-                
-                if (currentLength > 0 && currentLength < 5) {
-                    const remaining = 5 - currentLength;
-                    validationContainer.innerHTML = `
-                        <div class="validation-message validation-warning">
-                            <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
-                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                            </svg>
-                            <span>Need ${remaining} more characters</span>
-                        </div>
-                    `;
-                }
-            });
-        }
-    });
+    }
     
-    // Form validation before submit
-    form.addEventListener('submit', function(e) {
-        let hasErrors = false;
-        const requiredFields = ['name', 'email', 'subject', 'message'];
+    function showLocalValidation(containerId, type, message) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
         
-        requiredFields.forEach(fieldName => {
-            const field = form.querySelector(`[name="${fieldName}"]`);
-            if (field && !field.value.trim()) {
-                hasErrors = true;
-                const validationContainer = document.getElementById(`${fieldName}-validation`);
-                if (validationContainer) {
-                    validationContainer.innerHTML = `
-                        <div class="validation-message validation-error">
-                            <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                            </svg>
-                            <span>This field is required</span>
-                        </div>
-                    `;
+        const iconMap = {
+            success: '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>',
+            error: '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>',
+            warning: '<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>'
+        };
+        
+        container.innerHTML = `
+            <div class="validation-message validation-${type}">
+                <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
+                    ${iconMap[type]}
+                </svg>
+                <span>${message}</span>
+            </div>
+        `;
+    }
+    
+    function clearLocalValidation(containerId) {
+        const container = document.getElementById(containerId);
+        if (container && !container.innerHTML.includes('hx-')) {
+            container.innerHTML = '';
+        }
+    }
+    
+    function validateAllRequiredFields() {
+        let isValid = true;
+        const requiredFields = [
+            { name: 'name', minLength: 2, message: 'Please enter your full name' },
+            { name: 'email', validation: 'email', message: 'Please enter a valid email address' },
+            { name: 'subject', minLength: 5, message: 'Please enter a subject (at least 5 characters)' },
+            { name: 'message', minLength: 10, message: 'Please enter your message (at least 10 characters)' }
+        ];
+        
+        requiredFields.forEach(field => {
+            const input = form.querySelector(`[name="${field.name}"]`);
+            const value = input ? input.value.trim() : '';
+            
+            if (!value) {
+                showLocalValidation(`${field.name}-validation`, 'error', `${field.message}`);
+                isValid = false;
+            } else if (field.minLength && value.length < field.minLength) {
+                showLocalValidation(`${field.name}-validation`, 'error', `${field.message}`);
+                isValid = false;
+            } else if (field.validation === 'email') {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(value)) {
+                    showLocalValidation(`${field.name}-validation`, 'error', `${field.message}`);
+                    isValid = false;
                 }
             }
         });
         
-        if (hasErrors) {
-            e.preventDefault();
-            // Show toast notification
-            if (window.toastManager) {
-                window.toastManager.error('Please fill in all required fields before submitting.');
-            }
+        if (!isValid && window.toastManager) {
+            window.toastManager.error('Please fill in all required fields correctly before submitting.');
         }
-    });
+        
+        return isValid;
+    }
 });
 </script>
