@@ -1,14 +1,16 @@
+<!-- templates/partials/profile_form.html -->
 <div class="relative">
     <!-- Loading overlay -->
-    <div class="htmx-indicator loading-overlay">
+    <div class="htmx-indicator loading-overlay opacity-0 transition-opacity duration-300" id="profile-loading">
         <div class="loading-spinner"></div>
     </div>
     
     <form method="post" 
-          action="{% url 'accounts:profile' %}"
           enctype="multipart/form-data" 
+          action="{% url 'accounts:profile' %}"
           class="space-y-6" 
-          novalidate>
+          novalidate
+          id="profile-form">
         {% csrf_token %}
         
         <!-- Profile Picture Section -->
@@ -17,9 +19,10 @@
                 {% if profile.profile_picture %}
                     <img src="{{ profile.profile_picture.url }}" 
                          class="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg" 
-                         alt="Profile Picture">
+                         alt="Profile Picture"
+                         id="profile-preview">
                 {% else %}
-                    <div class="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center text-gray-500 border-4 border-white shadow-lg">
+                    <div class="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center text-gray-500 border-4 border-white shadow-lg" id="profile-preview">
                         <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                         </svg>
@@ -53,7 +56,7 @@
             <div class="flex justify-between mt-1">
                 <div id="bio-validation" class="validation-container flex-1"></div>
                 <div class="text-xs text-gray-400">
-                    <span id="bio-count">{% if form.bio.value %}{{ form.bio.value|length }}{% else %}0{% endif %}</span>/500 characters
+                    <span id="bio-count">{{ form.bio.value|length|default:0 }}</span>/500 characters
                 </div>
             </div>
             {% if form.bio.errors %}
@@ -151,12 +154,12 @@
         
         <!-- Submit Button -->
         <div class="pt-6 border-t border-gray-200">
-            <button type="submit" class="btn btn-primary text-lg font-semibold px-8 py-3">
+            <button type="submit" class="btn btn-primary text-lg font-semibold px-8 py-3" id="profile-submit-btn">
                 <span class="flex items-center justify-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 mr-2 hidden" id="profile-submit-spinner" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
-                    Save Changes
+                    <span id="profile-submit-text">Save Changes</span>
                 </span>
             </button>
         </div>
@@ -166,7 +169,7 @@
 <script>
 // Enhanced profile form interactions with comprehensive validation
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('#profile-form-container form');
+    const form = document.getElementById('profile-form');
     if (!form) return;
     
     // Bio character counter
@@ -180,7 +183,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (count > 500) {
                 bioCounter.parentElement.classList.add('text-red-500');
-                bioCounter.parentElement.classList.remove('text-gray-400');
+                bioCounter.parentElement.classList.remove('text-gray-400', 'text-amber-500');
             } else if (count > 450) {
                 bioCounter.parentElement.classList.add('text-amber-500');
                 bioCounter.parentElement.classList.remove('text-gray-400', 'text-red-500');
@@ -197,35 +200,103 @@ document.addEventListener('DOMContentLoaded', function() {
     // Phone number validation
     const phoneInput = form.querySelector('input[name="phone_number"]');
     if (phoneInput) {
-        phoneInput.setAttribute('hx-post', '/validate/phone-number/');
-        phoneInput.setAttribute('hx-trigger', 'keyup changed delay:500ms');
-        phoneInput.setAttribute('hx-target', '#phone-validation');
-        phoneInput.setAttribute('hx-swap', 'innerHTML');
+        let phoneTimeout;
+        phoneInput.addEventListener('input', function() {
+            clearTimeout(phoneTimeout);
+            const value = this.value.trim();
+            
+            if (!value) {
+                clearValidation('phone-validation');
+                return;
+            }
+            
+            phoneTimeout = setTimeout(() => {
+                fetch('/validate/phone-number/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: `phone_number=${encodeURIComponent(value)}`
+                })
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('phone-validation').innerHTML = html;
+                })
+                .catch(error => console.error('Validation error:', error));
+            }, 500);
+        });
     }
     
     // Website validation
     const websiteInput = form.querySelector('input[name="website"]');
     if (websiteInput) {
-        websiteInput.setAttribute('hx-post', '/validate/website/');
-        websiteInput.setAttribute('hx-trigger', 'keyup changed delay:500ms');
-        websiteInput.setAttribute('hx-target', '#website-validation');
-        websiteInput.setAttribute('hx-swap', 'innerHTML');
+        let websiteTimeout;
+        websiteInput.addEventListener('input', function() {
+            clearTimeout(websiteTimeout);
+            const value = this.value.trim();
+            
+            if (!value) {
+                clearValidation('website-validation');
+                return;
+            }
+            
+            websiteTimeout = setTimeout(() => {
+                fetch('/validate/website/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: `website=${encodeURIComponent(value)}`
+                })
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('website-validation').innerHTML = html;
+                })
+                .catch(error => console.error('Validation error:', error));
+            }, 500);
+        });
     }
     
     // Location validation
     const locationInput = form.querySelector('input[name="location"]');
     if (locationInput) {
-        locationInput.setAttribute('hx-post', '/validate/location/');
-        locationInput.setAttribute('hx-trigger', 'keyup changed delay:500ms');
-        locationInput.setAttribute('hx-target', '#location-validation');
-        locationInput.setAttribute('hx-swap', 'innerHTML');
+        let locationTimeout;
+        locationInput.addEventListener('input', function() {
+            clearTimeout(locationTimeout);
+            const value = this.value.trim();
+            
+            if (!value) {
+                clearValidation('location-validation');
+                return;
+            }
+            
+            locationTimeout = setTimeout(() => {
+                fetch('/validate/location/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: `location=${encodeURIComponent(value)}`
+                })
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('location-validation').innerHTML = html;
+                })
+                .catch(error => console.error('Validation error:', error));
+            }, 500);
+        });
     }
     
-    // File input styling and validation
+    // File input preview and validation
     const fileInput = form.querySelector('input[type="file"]');
     if (fileInput) {
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
+            const preview = document.getElementById('profile-preview');
+            
             if (file) {
                 // Validate file size (5MB)
                 if (file.size > 5 * 1024 * 1024) {
@@ -246,6 +317,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
+                // Show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (preview.tagName === 'IMG') {
+                        preview.src = e.target.result;
+                    } else {
+                        preview.innerHTML = `<img src="${e.target.result}" class="w-20 h-20 rounded-full object-cover" alt="Preview">`;
+                    }
+                };
+                reader.readAsDataURL(file);
+                
                 if (window.toastManager) {
                     window.toastManager.success('Profile picture selected successfully');
                 }
@@ -253,23 +335,78 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Add loading state to button on submit
+    // Enhanced form submission handling
     form.addEventListener('submit', function(e) {
-        const button = form.querySelector('button[type="submit"]');
+        const button = form.querySelector('#profile-submit-btn');
+        const spinner = form.querySelector('#profile-submit-spinner');
+        const text = form.querySelector('#profile-submit-text');
+        const overlay = document.getElementById('profile-loading');
+        
         if (button && !button.disabled) {
-            button.classList.add('btn-loading');
             button.disabled = true;
+            spinner.classList.remove('hidden');
+            text.textContent = 'Saving...';
             
-            // Show success message
-            if (window.toastManager) {
-                window.toastManager.info('Saving profile changes...');
+            // Show loading overlay
+            if (overlay) {
+                overlay.classList.remove('opacity-0');
+                overlay.classList.add('opacity-100');
             }
             
-            // Re-enable after timeout as fallback
-            setTimeout(() => {
-                button.classList.remove('btn-loading');
-                button.disabled = false;
-            }, 10000);
+            // Use FormData for file uploads
+            const formData = new FormData(form);
+            
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.text();
+                }
+                throw new Error('Network response was not ok');
+            })
+            .then(html => {
+                // Check if response contains success indicators
+                if (html.includes('Profile updated') || html.includes('success')) {
+                    if (window.toastManager) {
+                        window.toastManager.success('Profile updated successfully!');
+                    }
+                    // Update the form container with new content
+                    document.getElementById('profile-form-container').innerHTML = html;
+                } else {
+                    // Form has errors, update with new form
+                    document.getElementById('profile-form-container').innerHTML = html;
+                    if (window.toastManager) {
+                        window.toastManager.error('Please correct the errors and try again.');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                if (window.toastManager) {
+                    window.toastManager.error('Failed to save profile. Please try again.');
+                }
+            })
+            .finally(() => {
+                // Reset button state
+                if (button) {
+                    button.disabled = false;
+                    spinner.classList.add('hidden');
+                    text.textContent = 'Save Changes';
+                }
+                
+                // Hide loading overlay
+                if (overlay) {
+                    overlay.classList.remove('opacity-100');
+                    overlay.classList.add('opacity-0');
+                }
+            });
+            
+            e.preventDefault();
         }
     });
     
@@ -300,10 +437,3 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.value = '';
             } else if (age > 120) {
                 if (window.toastManager) {
-                    window.toastManager.warning('Please verify your birth date');
-                }
-            }
-        });
-    }
-});
-</script>
