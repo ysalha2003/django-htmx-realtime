@@ -15,6 +15,7 @@ from .models import Contact, NewsletterSubscription
 from .utils import (
     is_htmx_request, validate_email_format, validate_name, 
     validate_subject, validate_message, validate_newsletter_email,
+    validate_phone_number, validate_website, validate_location,
     render_validation_response, log_validation_attempt, get_contact_stats
 )
 
@@ -45,10 +46,15 @@ def contact_view(request):
             if form.is_valid():
                 contact = form.save()
                 logger.info(f"New contact created: {contact.id} from {contact.email}")
-                messages.success(request, f'Inquiry from {contact.name} submitted. Ref: #{contact.id}.')
                 
                 if is_htmx_request(request):
                     return render(request, 'partials/contact_success.html', {'contact': contact})
+                
+                messages.success(
+                    request, 
+                    f'Thank you {contact.name}! Your inquiry has been submitted successfully. Reference ID: #{contact.id}',
+                    extra_tags='success-notification'
+                )
                 return redirect('core:contact')
             else:
                 logger.warning(f"Invalid contact form submission: {form.errors}")
@@ -56,12 +62,12 @@ def contact_view(request):
                     return render(request, 'partials/contact_form.html', {'form': form})
         except Exception as e:
             logger.error(f"Error processing contact form: {e}")
-            messages.error(request, 'An error occurred while submitting your message. Please try again.')
             if is_htmx_request(request):
-                return render(request, 'partials/contact_form.html', {'form': form})
+                return render(request, 'partials/contact_form_error.html', {'form': form})
+            messages.error(request, 'An error occurred while submitting your message. Please try again.')
     else:
         form = ContactForm()
-
+    
     # Get recent contacts for staff users with optimized query
     recent_contacts = None
     if request.user.is_staff:
@@ -84,20 +90,35 @@ def newsletter_subscribe(request):
             if form.is_valid():
                 subscription = form.save()
                 logger.info(f"New newsletter subscription: {subscription.email}")
-                messages.success(request, 'Subscription successful. Thank you!')
                 
                 if is_htmx_request(request):
                     return render(request, 'partials/newsletter_success.html')
+                
+                messages.success(
+                    request, 
+                    'Successfully subscribed to our newsletter! Thank you for joining our community.',
+                    extra_tags='success-notification'
+                )
             else:
                 logger.warning(f"Invalid newsletter form: {form.errors}")
-                messages.warning(request, 'This email address is already subscribed or invalid.')
                 if is_htmx_request(request):
                     return render(request, 'partials/newsletter_form.html', {'newsletter_form': form})
+                
+                # Handle specific error messages
+                if 'email' in form.errors:
+                    error_msg = form.errors['email'][0]
+                    if 'already exists' in str(error_msg).lower():
+                        messages.warning(request, 'This email address is already subscribed to our newsletter.')
+                    else:
+                        messages.error(request, 'Please enter a valid email address.')
+                else:
+                    messages.error(request, 'Please check your email address and try again.')
+                    
         except Exception as e:
             logger.error(f"Error processing newsletter subscription: {e}")
-            messages.error(request, 'An error occurred. Please try again.')
             if is_htmx_request(request):
                 return render(request, 'partials/newsletter_form.html', {'newsletter_form': form})
+            messages.error(request, 'An error occurred. Please try again later.')
     
     return redirect('core:home')
 
@@ -164,7 +185,7 @@ def api_pending_contacts_count(request):
         logger.error(f"Error getting pending contacts count: {e}")
         return JsonResponse({'error': 'Internal server error'}, status=500)
 
-# Fixed validation endpoints with proper error handling
+# Enhanced validation endpoints with comprehensive field support
 @require_http_methods(["POST"])
 def validate_name(request):
     """Validate name field"""
@@ -258,4 +279,59 @@ def validate_newsletter_email(request):
             return render(request, 'partials/validation_warning.html', {'message': message})
     except Exception as e:
         logger.error(f"Error validating newsletter email: {e}")
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error occurred'})
+
+# New validation endpoints for profile fields
+@require_http_methods(["POST"])
+def validate_phone_number(request):
+    """Validate phone number field"""
+    phone = request.POST.get('phone_number', '').strip()
+    if not phone:
+        return HttpResponse('')
+    
+    try:
+        is_valid, message = validate_phone_number(phone)
+        
+        if is_valid:
+            return render(request, 'partials/validation_success.html', {'message': message})
+        else:
+            return render(request, 'partials/validation_error.html', {'message': message})
+    except Exception as e:
+        logger.error(f"Error validating phone number: {e}")
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error occurred'})
+
+@require_http_methods(["POST"])
+def validate_website(request):
+    """Validate website field"""
+    website = request.POST.get('website', '').strip()
+    if not website:
+        return HttpResponse('')
+    
+    try:
+        is_valid, message = validate_website(website)
+        
+        if is_valid:
+            return render(request, 'partials/validation_success.html', {'message': message})
+        else:
+            return render(request, 'partials/validation_error.html', {'message': message})
+    except Exception as e:
+        logger.error(f"Error validating website: {e}")
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error occurred'})
+
+@require_http_methods(["POST"])
+def validate_location(request):
+    """Validate location field"""
+    location = request.POST.get('location', '').strip()
+    if not location:
+        return HttpResponse('')
+    
+    try:
+        is_valid, message = validate_location(location)
+        
+        if is_valid:
+            return render(request, 'partials/validation_success.html', {'message': message})
+        else:
+            return render(request, 'partials/validation_error.html', {'message': message})
+    except Exception as e:
+        logger.error(f"Error validating location: {e}")
         return render(request, 'partials/validation_error.html', {'message': 'Validation error occurred'})
