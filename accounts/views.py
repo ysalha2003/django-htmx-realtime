@@ -15,7 +15,7 @@ from .models import UserProfile
 from core.utils import (
     is_htmx_request, validate_name, validate_username, 
     validate_email_availability, validate_password_strength,
-    render_validation_response, log_validation_attempt
+    log_validation_attempt
 )
 
 logger = logging.getLogger(__name__)
@@ -138,7 +138,7 @@ def profile_view(request):
         messages.error(request, 'Error loading profile. Please try again.')
         return redirect('core:home')
 
-# Validation endpoints with improved error handling
+# Fixed validation endpoints with proper error handling
 @require_http_methods(["POST"])
 def validate_username(request):
     """Validate username availability and format"""
@@ -150,11 +150,13 @@ def validate_username(request):
         is_valid, message = validate_username(username)
         log_validation_attempt('username', username, is_valid, request)
         
-        template_type = 'success' if is_valid else 'error'
-        return render(request, *render_validation_response(template_type, message))
+        if is_valid:
+            return render(request, 'partials/validation_success.html', {'message': message})
+        else:
+            return render(request, 'partials/validation_error.html', {'message': message})
     except Exception as e:
         logger.error(f"Error validating username: {e}")
-        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
+        return render(request, 'partials/validation_error.html', {'message': 'Username validation failed'})
 
 @require_http_methods(["POST"])
 def validate_first_name(request):
@@ -167,11 +169,13 @@ def validate_first_name(request):
         is_valid, message = validate_name(first_name, field_name="First name")
         log_validation_attempt('first_name', first_name, is_valid, request)
         
-        template_type = 'success' if is_valid else 'error'
-        return render(request, *render_validation_response(template_type, message))
+        if is_valid:
+            return render(request, 'partials/validation_success.html', {'message': message})
+        else:
+            return render(request, 'partials/validation_error.html', {'message': message})
     except Exception as e:
         logger.error(f"Error validating first name: {e}")
-        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
+        return render(request, 'partials/validation_error.html', {'message': 'First name validation failed'})
 
 @require_http_methods(["POST"])
 def validate_last_name(request):
@@ -184,11 +188,13 @@ def validate_last_name(request):
         is_valid, message = validate_name(last_name, field_name="Last name")
         log_validation_attempt('last_name', last_name, is_valid, request)
         
-        template_type = 'success' if is_valid else 'error'
-        return render(request, *render_validation_response(template_type, message))
+        if is_valid:
+            return render(request, 'partials/validation_success.html', {'message': message})
+        else:
+            return render(request, 'partials/validation_error.html', {'message': message})
     except Exception as e:
         logger.error(f"Error validating last name: {e}")
-        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
+        return render(request, 'partials/validation_error.html', {'message': 'Last name validation failed'})
 
 @require_http_methods(["POST"])
 def validate_email_register(request):
@@ -201,11 +207,13 @@ def validate_email_register(request):
         is_valid, message = validate_email_availability(email)
         log_validation_attempt('registration_email', email, is_valid, request)
         
-        template_type = 'success' if is_valid else 'error'
-        return render(request, *render_validation_response(template_type, message))
+        if is_valid:
+            return render(request, 'partials/validation_success.html', {'message': message})
+        else:
+            return render(request, 'partials/validation_error.html', {'message': message})
     except Exception as e:
         logger.error(f"Error validating registration email: {e}")
-        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
+        return render(request, 'partials/validation_error.html', {'message': 'Email validation failed'})
 
 @require_http_methods(["POST"])
 def validate_password(request):
@@ -226,7 +234,7 @@ def validate_password(request):
         return render(request, 'partials/password_strength.html', context)
     except Exception as e:
         logger.error(f"Error validating password: {e}")
-        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
+        return render(request, 'partials/validation_error.html', {'message': 'Password validation failed'})
 
 @require_http_methods(["POST"])
 def validate_password2(request):
@@ -239,14 +247,10 @@ def validate_password2(request):
     
     try:
         if password1 != password2:
-            template_type = 'error'
-            message = 'Passwords do not match'
+            return render(request, 'partials/validation_error.html', {'message': 'Passwords do not match'})
         else:
-            template_type = 'success'
-            message = 'Passwords match!'
+            return render(request, 'partials/validation_success.html', {'message': 'Passwords match!'})
         
-        log_validation_attempt('password_confirmation', '***', password1 == password2, request)
-        return render(request, *render_validation_response(template_type, message))
     except Exception as e:
         logger.error(f"Error validating password confirmation: {e}")
-        return render(request, 'partials/validation_error.html', {'message': 'Validation error'})
+        return render(request, 'partials/validation_error.html', {'message': 'Password confirmation failed'})
