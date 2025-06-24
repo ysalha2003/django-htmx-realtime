@@ -1,3 +1,4 @@
+# core/views.py
 import logging
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -9,6 +10,7 @@ from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django.core.exceptions import ValidationError
+from django.views.decorators.csrf import csrf_exempt
 
 from .forms import ContactForm, NewsletterForm
 from .models import Contact, NewsletterSubscription
@@ -47,6 +49,7 @@ def contact_view(request):
                 contact = form.save()
                 logger.info(f"New contact created: {contact.id} from {contact.email}")
                 
+                # For HTMX requests, return success partial
                 if is_htmx_request(request):
                     return render(request, 'partials/contact_success.html', {'contact': contact})
                 
@@ -58,11 +61,11 @@ def contact_view(request):
                 return redirect('core:contact')
             else:
                 logger.warning(f"Invalid contact form submission: {form.errors}")
+                # For HTMX requests, return form with errors
                 if is_htmx_request(request):
                     return render(request, 'partials/contact_form.html', {'form': form})
-                else:
-                    # For regular form submission, show errors on the same page
-                    messages.error(request, 'Please correct the errors in the form below.')
+                # For regular requests, show form with errors
+                messages.error(request, 'Please correct the errors below.')
         except Exception as e:
             logger.error(f"Error processing contact form: {e}")
             if is_htmx_request(request):
