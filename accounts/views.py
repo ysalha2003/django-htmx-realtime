@@ -9,6 +9,7 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import reverse_lazy
 from django.core.exceptions import ValidationError
+from django.contrib.auth.password_validation import validate_password
 
 from .forms import CustomUserCreationForm, UserProfileForm
 from .models import UserProfile
@@ -187,17 +188,27 @@ def validate_username(request):
 
 @require_http_methods(["POST"])
 def validate_login_username(request):
-    """Validate username for login form"""
+    """Validate username for login form - Fixed to handle length properly"""
     username = request.POST.get('username', '').strip()
     if not username:
         return HttpResponse('')
     
     try:
+        # First check basic format requirements
+        if len(username) < 3:
+            return render(request, 'partials/validation_warning.html', {
+                'message': f'Username too short ({len(username)}/3 characters minimum)'
+            })
+        
         # Check if username exists
         if User.objects.filter(username=username).exists():
-            return render(request, 'partials/validation_success.html', {'message': 'Username found'})
+            return render(request, 'partials/validation_success.html', {
+                'message': '✓ Username found'
+            })
         else:
-            return render(request, 'partials/validation_warning.html', {'message': 'Username not found'})
+            return render(request, 'partials/validation_warning.html', {
+                'message': 'Username not found in our system'
+            })
     except Exception as e:
         logger.error(f"Error validating login username: {e}")
         return render(request, 'partials/validation_error.html', {'message': 'Validation error occurred'})
@@ -278,28 +289,44 @@ def validate_password_reset_email(request):
 
 @require_http_methods(["POST"])
 def validate_password(request):
-    """Validate password strength"""
+    """Enhanced password strength validation"""
     password = request.POST.get('password1', '').strip()
     if not password:
         return HttpResponse('')
     
     try:
-        strength, feedback = validate_password_strength(password)
-        log_validation_attempt('password', '***', strength >= 3, request)
+        # Get Django's built-in password validation
+        django_errors = []
+        try:
+            validate_password(password)
+        except ValidationError as e:
+            django_errors = e.messages
         
-        context = {
-            'strength': strength,
-            'feedback': feedback,
-            'password_length': len(password)
-        }
-        return render(request, 'partials/password_strength.html', context)
+        # Get custom strength validation
+        strength, feedback = validate_password_strength(password)
+        
+        # Combine validation results
+        if django_errors:
+            return render(request, 'partials/validation_error.html', {
+                'message': django_errors[0]  # Show first Django validation error
+            })
+        elif strength < 3:
+            return render(request, 'partials/validation_warning.html', {
+                'message': f'Password strength: {"Weak" if strength <= 1 else "Fair"}. Missing: {", ".join(feedback)}'
+            })
+        else:
+            strength_label = "Strong" if strength >= 4 else "Good"
+            return render(request, 'partials/validation_success.html', {
+                'message': f'✓ {strength_label} password!'
+            })
+            
     except Exception as e:
         logger.error(f"Error validating password: {e}")
         return render(request, 'partials/validation_error.html', {'message': 'Password validation failed'})
 
 @require_http_methods(["POST"])
 def validate_password2(request):
-    """Validate password confirmation"""
+    """Enhanced password confirmation validation"""
     password1 = request.POST.get('password1', '')
     password2 = request.POST.get('password2', '')
     
@@ -307,12 +334,18 @@ def validate_password2(request):
         return HttpResponse('')
     
     try:
-        if password1 != password2:
-            return render(request, 'partials/validation_error.html', {'message': 'Passwords do not match'})
-        elif len(password2) > 0:
-            return render(request, 'partials/validation_success.html', {'message': 'Passwords match!'})
+        if not password1:
+            return render(request, 'partials/validation_warning.html', {
+                'message': 'Enter password first'
+            })
+        elif password1 != password2:
+            return render(request, 'partials/validation_error.html', {
+                'message': 'Passwords do not match'
+            })
         else:
-            return HttpResponse('')
+            return render(request, 'partials/validation_success.html', {
+                'message': '✓ Passwords match!'
+            })
         
     except Exception as e:
         logger.error(f"Error validating password confirmation: {e}")
