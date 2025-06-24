@@ -13,10 +13,15 @@ urlpatterns = [
     # API endpoints
     path('api/pending-contacts-count/', views.api_pending_contacts_count, name='api_pending_contacts_count'),
 
-    # Validation endpoints
+    # Enhanced validation endpoints for contact form
     path('validate/name/', views.validate_name, name='validate_name'),
     path('validate/email/', views.validate_email, name='validate_email'),
     path('validate/subject/', views.validate_subject, name='validate_subject'),
     path('validate/message/', views.validate_message, name='validate_message'),
     path('validate/newsletter-email/', views.validate_newsletter_email, name='validate_newsletter_email'),
+    
+    # New validation endpoints for profile fields
+    path('validate/phone-number/', views.validate_phone_number, name='validate_phone_number'),
+    path('validate/website/', views.validate_website, name='validate_website'),
+    path('validate/location/', views.validate_location, name='validate_location'),
 ]
