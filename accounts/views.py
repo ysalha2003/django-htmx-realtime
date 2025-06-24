@@ -93,11 +93,15 @@ def register_view(request):
                 logger.warning(f"Invalid registration form: {form.errors}")
                 if is_htmx_request(request):
                     return render(request, 'partials/register_form.html', {'form': form})
+                else:
+                    # For regular form submission, show errors on the same page
+                    return render(request, 'registration/register.html', {'form': form})
         except Exception as e:
             logger.error(f"Error during registration: {e}")
             if is_htmx_request(request):
                 return render(request, 'partials/register_form.html', {'form': form})
             messages.error(request, 'An error occurred during registration. Please try again.')
+            return render(request, 'registration/register.html', {'form': form})
     else:
         form = CustomUserCreationForm()
     
@@ -117,12 +121,6 @@ def profile_view(request):
                     form.save()
                     logger.info(f"Profile updated for user: {request.user.username}")
                     
-                    if is_htmx_request(request):
-                        return render(request, 'partials/profile_form.html', {
-                            'form': form, 
-                            'profile': profile
-                        })
-                    
                     messages.success(
                         request, 
                         'Your profile has been updated successfully!',
@@ -131,27 +129,12 @@ def profile_view(request):
                     return redirect('accounts:profile')
                 else:
                     logger.warning(f"Invalid profile form for user {request.user.username}: {form.errors}")
-                    if is_htmx_request(request):
-                        return render(request, 'partials/profile_form.html', {
-                            'form': form, 
-                            'profile': profile
-                        })
                     messages.error(request, 'Please correct the errors below.')
             except ValidationError as e:
                 logger.warning(f"Profile validation error for user {request.user.username}: {e}")
-                if is_htmx_request(request):
-                    return render(request, 'partials/profile_form.html', {
-                        'form': form, 
-                        'profile': profile
-                    })
                 messages.error(request, 'Please correct the errors in your profile.')
             except Exception as e:
                 logger.error(f"Error updating profile for user {request.user.username}: {e}")
-                if is_htmx_request(request):
-                    return render(request, 'partials/profile_form.html', {
-                        'form': form, 
-                        'profile': profile
-                    })
                 messages.error(request, 'An error occurred while updating your profile.')
         else:
             form = UserProfileForm(instance=profile)
