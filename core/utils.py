@@ -42,9 +42,11 @@ def render_validation_response(template_type, message, request=None):
     return template, context
 
 def validate_email_format(email):
-    """Validate email format with enhanced checks"""
+    """Enhanced email validation with comprehensive checks"""
     if not email:
         return False, "Email is required"
+    
+    email = email.strip().lower()
     
     if len(email) > 254:
         return False, "Email address is too long"
@@ -63,10 +65,19 @@ def validate_email_format(email):
     if domain.startswith('.') or domain.endswith('.'):
         return False, "Invalid domain format"
     
-    return True, "Email format is valid"
+    # Check for consecutive dots
+    if '..' in email:
+        return False, "Email address contains invalid characters"
+    
+    # Check for obviously fake domains
+    suspicious_domains = ['test.com', 'example.com', 'fake.com', 'notreal.com']
+    if domain in suspicious_domains:
+        return False, "Please enter a real email address"
+    
+    return True, "✓ Email format is valid"
 
 def validate_name(name, min_length=2, max_length=100, field_name="Name"):
-    """Enhanced name validation"""
+    """Enhanced name validation with comprehensive checks"""
     if not name:
         return False, f"{field_name} is required"
     
@@ -85,10 +96,19 @@ def validate_name(name, min_length=2, max_length=100, field_name="Name"):
     if len([c for c in name if c.isalpha()]) < 2:
         return False, f"{field_name} must contain at least 2 letters"
     
-    return True, f"{field_name} looks good!"
+    # Check for obvious test data
+    test_names = ['test', 'testing', 'john doe', 'jane doe', 'test user', 'asdf', 'qwerty', 'admin']
+    if name.lower() in test_names:
+        return False, f"Please enter your real {field_name.lower()}"
+    
+    # Check for excessive repetition
+    if len(set(name.replace(' ', '').lower())) < 3:
+        return False, f"Please enter a valid {field_name.lower()}"
+    
+    return True, f"✓ {field_name} looks good!"
 
 def validate_username(username):
-    """Enhanced username validation"""
+    """Enhanced username validation with availability check"""
     if not username:
         return False, "Username is required"
     
@@ -104,20 +124,32 @@ def validate_username(username):
         return False, "Username can only contain letters, numbers, dots, hyphens, and underscores"
     
     # Check for reserved usernames
-    reserved_usernames = ['admin', 'root', 'user', 'test', 'guest', 'administrator']
+    reserved_usernames = [
+        'admin', 'root', 'user', 'test', 'guest', 'administrator', 'api', 'www',
+        'mail', 'email', 'support', 'help', 'info', 'contact', 'service',
+        'system', 'null', 'undefined', 'none', 'delete', 'remove'
+    ]
     if username.lower() in reserved_usernames:
         return False, "This username is reserved. Please choose another one"
     
+    # Check for inappropriate patterns
+    inappropriate_patterns = ['admin', 'moderator', 'staff', 'official']
+    if any(pattern in username.lower() for pattern in inappropriate_patterns):
+        return False, "Please choose a different username"
+    
+    # Check if already taken
     if User.objects.filter(username=username).exists():
         return False, "This username is already taken"
     
-    return True, "Username is available!"
+    return True, "✓ Username is available!"
 
 def validate_email_availability(email, exclude_user=None):
-    """Check if email is available for registration"""
+    """Check if email is available for registration with enhanced validation"""
     is_valid, message = validate_email_format(email)
     if not is_valid:
         return False, message
+    
+    email = email.strip().lower()
     
     query = User.objects.filter(email=email)
     if exclude_user:
@@ -126,21 +158,29 @@ def validate_email_availability(email, exclude_user=None):
     if query.exists():
         return False, "An account with this email already exists"
     
-    return True, "Email is available!"
+    return True, "✓ Email is available!"
 
 def validate_newsletter_email(email):
-    """Validate email for newsletter subscription"""
+    """Validate email for newsletter subscription with enhanced checks"""
     is_valid, message = validate_email_format(email)
     if not is_valid:
         return False, message
     
+    email = email.strip().lower()
+    
     if NewsletterSubscription.objects.filter(email=email, is_active=True).exists():
         return False, "This email is already subscribed to our newsletter"
     
-    return True, "Email is ready for subscription!"
+    # Check for role-based emails (warning, not error)
+    role_prefixes = ['admin', 'info', 'support', 'sales', 'marketing', 'noreply', 'no-reply']
+    email_local = email.split('@')[0]
+    if email_local in role_prefixes:
+        return False, "Please use a personal email address for newsletter subscription"
+    
+    return True, "✓ Email is ready for subscription!"
 
 def validate_password_strength(password):
-    """Enhanced password strength validation"""
+    """Enhanced password strength validation with detailed feedback"""
     if not password:
         return 0, ["Password is required"]
     
@@ -181,13 +221,22 @@ def validate_password_strength(password):
     if len(password) >= 12:
         strength = min(strength + 0.5, 5)
     
-    if not any(common in password.lower() for common in ['password', '123456', 'qwerty', 'admin']):
-        strength = min(strength + 0.5, 5)
+    # Check for common weak patterns
+    weak_patterns = ['password', '123456', 'qwerty', 'admin', 'letmein', 'welcome']
+    if any(pattern in password.lower() for pattern in weak_patterns):
+        strength = max(strength - 1, 0)
+        feedback.append("Avoid common words")
+    
+    # Check for keyboard patterns
+    keyboard_patterns = ['qwerty', 'asdf', '1234', 'abcd']
+    if any(pattern in password.lower() for pattern in keyboard_patterns):
+        strength = max(strength - 0.5, 0)
+        feedback.append("Avoid keyboard patterns")
     
     return int(strength), feedback
 
 def validate_subject(subject, min_length=5, max_length=200):
-    """Enhanced subject validation"""
+    """Enhanced subject validation for contact forms"""
     if not subject:
         return False, "Subject is required"
     
@@ -203,10 +252,20 @@ def validate_subject(subject, min_length=5, max_length=200):
     if subject.count(' ') == 0 and len(subject) > 20:
         return False, "Subject should contain spaces between words"
     
-    return True, "Subject looks good!"
+    # Check for spam patterns
+    spam_patterns = ['!!!', 'URGENT', 'FREE', 'WINNER', '$$$', 'CLICK HERE', 'ACT NOW']
+    if any(pattern in subject.upper() for pattern in spam_patterns):
+        return False, "Subject appears to be spam. Please use a professional subject line"
+    
+    # Check for minimum word count
+    word_count = len(subject.split())
+    if word_count < 2:
+        return False, "Subject should contain at least 2 words"
+    
+    return True, f"✓ Subject looks good! ({word_count} words)"
 
 def validate_message(message, min_length=10, max_length=2000):
-    """Enhanced message validation"""
+    """Enhanced message validation for contact forms"""
     if not message:
         return False, "Message is required"
     
@@ -223,10 +282,33 @@ def validate_message(message, min_length=10, max_length=2000):
     if word_count < 3:
         return False, "Message should contain at least 3 words"
     
-    return True, f"Message looks good! ({word_count} words)"
+    # Check for excessive links
+    if message.count('http') > 3:
+        return False, "Message contains too many links"
+    
+    # Check for excessive repetition
+    if word_count > 10:
+        words = message.lower().split()
+        word_freq = {}
+        for word in words:
+            if len(word) > 2:  # Only count meaningful words
+                word_freq[word] = word_freq.get(word, 0) + 1
+        
+        if word_freq:
+            max_freq = max(word_freq.values())
+            if max_freq > len(words) * 0.3:
+                return False, "Message contains excessive repetition"
+    
+    # Check for obvious spam content
+    spam_indicators = ['viagra', 'casino', 'lottery', 'winner', 'prize', 'click here']
+    spam_count = sum(1 for indicator in spam_indicators if indicator in message.lower())
+    if spam_count > 2:
+        return False, "Message appears to be spam"
+    
+    return True, f"✓ Message looks good! ({word_count} words)"
 
 def validate_phone_number(phone):
-    """Validate phone number format"""
+    """Enhanced phone number validation"""
     if not phone:
         return False, "Phone number is required"
     
@@ -243,16 +325,21 @@ def validate_phone_number(phone):
         return False, "Phone number must contain at least 10 digits"
     
     if len(clean_phone) > 15:
-        return False, "Phone number is too long"
+        return False, "Phone number is too long (max 15 digits)"
     
     # Check for obvious fake numbers
-    if clean_phone in ['0000000000', '1111111111', '1234567890']:
+    fake_patterns = ['0000000000', '1111111111', '1234567890', '9999999999', '5555555555']
+    if clean_phone in fake_patterns:
         return False, "Please enter a valid phone number"
     
-    return True, "Phone number format is valid"
+    # Check for excessive repetition
+    if len(set(clean_phone)) < 4:
+        return False, "Please enter a valid phone number"
+    
+    return True, "✓ Phone number format is valid"
 
 def validate_website(website):
-    """Validate website URL format"""
+    """Enhanced website URL validation"""
     if not website:
         return False, "Website URL is required"
     
@@ -279,13 +366,22 @@ def validate_website(website):
         if any(len(part) == 0 for part in domain_parts):
             return False, "Invalid domain format"
         
-        return True, "Website URL looks good!"
+        # Check for suspicious domains
+        suspicious_patterns = ['bit.ly', 'tinyurl', 'localhost', '127.0.0.1']
+        if any(pattern in parsed.netloc.lower() for pattern in suspicious_patterns):
+            return False, "Please enter a proper website URL"
+        
+        # Check for example domains
+        if 'example.com' in parsed.netloc.lower():
+            return False, "Please enter your actual website URL"
+        
+        return True, "✓ Website URL looks good!"
         
     except Exception:
         return False, "Please enter a valid website URL"
 
 def validate_location(location, max_length=100):
-    """Validate location field"""
+    """Enhanced location validation"""
     if not location:
         return False, "Location is required"
     
@@ -302,29 +398,42 @@ def validate_location(location, max_length=100):
         return False, "Location can only contain letters, spaces, commas, hyphens, apostrophes, and periods"
     
     # Check for meaningful content
-    if location.replace(' ', '').replace(',', '').replace('-', '') == '':
+    if location.replace(' ', '').replace(',', '').replace('-', '').replace('.', '') == '':
         return False, "Please enter a valid location"
     
-    return True, "Location looks good!"
+    # Check for obvious test data
+    test_locations = ['test', 'testing', 'xyz', 'abc', 'none', 'n/a', 'unknown', 'nowhere']
+    if location.lower() in test_locations:
+        return False, "Please enter a valid location"
+    
+    # Check for minimum meaningful content
+    alpha_chars = len([c for c in location if c.isalpha()])
+    if alpha_chars < 2:
+        return False, "Location must contain at least 2 letters"
+    
+    return True, "✓ Location looks good!"
 
 def log_validation_attempt(field_name, value, is_valid, request=None):
-    """Enhanced validation logging"""
+    """Enhanced validation logging with security considerations"""
     user_id = request.user.id if request and request.user.is_authenticated else None
+    
+    # Don't log sensitive data like passwords
+    logged_value = '***' if 'password' in field_name.lower() else (str(value)[:50] if value else 'empty')
     
     logger.info(
         f"Validation attempt - Field: {field_name}, "
         f"Valid: {is_valid}, User: {user_id}, "
         f"IP: {get_client_ip(request) if request else 'Unknown'}, "
-        f"Length: {len(str(value)) if value else 0}"
+        f"Value: {logged_value}"
     )
 
 def get_client_ip(request):
-    """Get client IP address from request"""
+    """Get client IP address from request with proxy support"""
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0]
+        ip = x_forwarded_for.split(',')[0].strip()
     else:
-        ip = request.META.get('REMOTE_ADDR')
+        ip = request.META.get('REMOTE_ADDR', 'Unknown')
     return ip
 
 def safe_int(value, default=0):
@@ -345,7 +454,7 @@ def truncate_text(text, max_length=50, suffix="..."):
     return text[:max_length - len(suffix)] + suffix
 
 def get_contact_stats():
-    """Get contact statistics for dashboard"""
+    """Get contact statistics for dashboard with error handling"""
     try:
         stats = {
             'total_contacts': Contact.objects.count(),
@@ -364,14 +473,14 @@ def get_contact_stats():
         }
 
 def sanitize_input(text, max_length=None):
-    """Sanitize user input"""
+    """Sanitize user input for security"""
     if not text:
         return ""
     
     # Strip whitespace
     text = text.strip()
     
-    # Remove control characters
+    # Remove control characters except newlines, carriage returns, and tabs
     text = ''.join(char for char in text if ord(char) >= 32 or char in '\n\r\t')
     
     # Truncate if necessary
@@ -397,13 +506,37 @@ def format_phone_display(phone):
     return phone  # Return original if we can't format
 
 def validate_form_security(request):
-    """Basic form security validation"""
+    """Enhanced form security validation"""
     # Check for suspicious patterns
     if request.method == 'POST':
         # Check for script injection attempts
+        dangerous_patterns = [
+            '<script', 'javascript:', 'vbscript:', 'onload=', 'onerror=',
+            'eval(', 'document.cookie', 'alert(', '<iframe', '<object'
+        ]
+        
         for field, value in request.POST.items():
-            if isinstance(value, str) and any(pattern in value.lower() for pattern in ['<script', 'javascript:', 'vbscript:']):
-                logger.warning(f"Potential script injection attempt from {get_client_ip(request)}")
-                return False, "Invalid characters detected in form submission"
+            if isinstance(value, str):
+                value_lower = value.lower()
+                for pattern in dangerous_patterns:
+                    if pattern in value_lower:
+                        logger.warning(f"Potential script injection attempt from {get_client_ip(request)}: {pattern}")
+                        return False, "Invalid characters detected in form submission"
+        
+        # Check for excessive form submission rate
+        # This would need to be implemented with caching/session storage
+        # for a production system
     
     return True, "Form security check passed"
+
+def get_validation_error_context(errors):
+    """Helper to format form errors for better display"""
+    if not errors:
+        return {}
+    
+    formatted_errors = {}
+    for field, error_list in errors.items():
+        if error_list:
+            formatted_errors[field] = error_list[0]  # Take first error
+    
+    return formatted_errors
