@@ -33,6 +33,12 @@ class CustomLoginView(LoginView):
                 response = HttpResponse()
                 response['HX-Redirect'] = self.get_success_url()
                 return response
+            
+            messages.success(
+                self.request, 
+                f'Welcome back, {form.get_user().get_full_name() or form.get_user().username}!',
+                extra_tags='success-notification'
+            )
             return super().form_valid(form)
         except Exception as e:
             logger.error(f"Error during login: {e}")
@@ -41,7 +47,17 @@ class CustomLoginView(LoginView):
 
     def form_invalid(self, form):
         """Handle failed login"""
-        logger.warning(f"Failed login attempt for user: {form.data.get('username', 'unknown')}")
+        username = form.data.get('username', 'unknown')
+        logger.warning(f"Failed login attempt for user: {username}")
+        
+        if is_htmx_request(self.request):
+            return render(self.request, 'registration/login.html', {'form': form})
+        
+        messages.error(
+            self.request, 
+            'Invalid username or password. Please check your credentials and try again.',
+            extra_tags='error-notification'
+        )
         return super().form_invalid(form)
 
 class CustomLogoutView(LogoutView):
@@ -57,7 +73,6 @@ def register_view(request):
                 user = form.save()
                 username = form.cleaned_data.get('username')
                 logger.info(f"New user registered: {username}")
-                messages.success(request, f'Account for {username} created successfully. Welcome!')
                 
                 # Log the user in
                 login(request, user, backend='django.contrib.auth.backends.ModelBackend')
@@ -66,6 +81,12 @@ def register_view(request):
                     response = HttpResponse()
                     response['HX-Redirect'] = reverse_lazy('core:home')
                     return response
+                
+                messages.success(
+                    request, 
+                    f'Welcome to our platform, {user.get_full_name() or username}! Your account has been created successfully.',
+                    extra_tags='success-notification'
+                )
                 return redirect('core:home')
             else:
                 logger.warning(f"Invalid registration form: {form.errors}")
@@ -73,9 +94,9 @@ def register_view(request):
                     return render(request, 'partials/register_form.html', {'form': form})
         except Exception as e:
             logger.error(f"Error during registration: {e}")
-            messages.error(request, 'An error occurred during registration. Please try again.')
             if is_htmx_request(request):
                 return render(request, 'partials/register_form.html', {'form': form})
+            messages.error(request, 'An error occurred during registration. Please try again.')
     else:
         form = CustomUserCreationForm()
     
@@ -94,13 +115,18 @@ def profile_view(request):
                 if form.is_valid():
                     form.save()
                     logger.info(f"Profile updated for user: {request.user.username}")
-                    messages.success(request, 'Profile updated successfully.')
                     
                     if is_htmx_request(request):
                         return render(request, 'partials/profile_form.html', {
                             'form': form, 
                             'profile': profile
                         })
+                    
+                    messages.success(
+                        request, 
+                        'Your profile has been updated successfully!',
+                        extra_tags='success-notification'
+                    )
                     return redirect('accounts:profile')
                 else:
                     logger.warning(f"Invalid profile form for user {request.user.username}: {form.errors}")
@@ -109,22 +135,23 @@ def profile_view(request):
                             'form': form, 
                             'profile': profile
                         })
+                    messages.error(request, 'Please correct the errors below.')
             except ValidationError as e:
                 logger.warning(f"Profile validation error for user {request.user.username}: {e}")
-                messages.error(request, 'Please correct the errors below.')
                 if is_htmx_request(request):
                     return render(request, 'partials/profile_form.html', {
                         'form': form, 
                         'profile': profile
                     })
+                messages.error(request, 'Please correct the errors in your profile.')
             except Exception as e:
                 logger.error(f"Error updating profile for user {request.user.username}: {e}")
-                messages.error(request, 'An error occurred while updating your profile.')
                 if is_htmx_request(request):
                     return render(request, 'partials/profile_form.html', {
                         'form': form, 
                         'profile': profile
                     })
+                messages.error(request, 'An error occurred while updating your profile.')
         else:
             form = UserProfileForm(instance=profile)
         
@@ -138,7 +165,7 @@ def profile_view(request):
         messages.error(request, 'Error loading profile. Please try again.')
         return redirect('core:home')
 
-# Fixed validation endpoints with proper error handling
+# Enhanced validation endpoints with comprehensive field support
 @require_http_methods(["POST"])
 def validate_username(request):
     """Validate username availability and format"""
@@ -157,6 +184,23 @@ def validate_username(request):
     except Exception as e:
         logger.error(f"Error validating username: {e}")
         return render(request, 'partials/validation_error.html', {'message': 'Username validation failed'})
+
+@require_http_methods(["POST"])
+def validate_login_username(request):
+    """Validate username for login form"""
+    username = request.POST.get('username', '').strip()
+    if not username:
+        return HttpResponse('')
+    
+    try:
+        # Check if username exists
+        if User.objects.filter(username=username).exists():
+            return render(request, 'partials/validation_success.html', {'message': 'Username found'})
+        else:
+            return render(request, 'partials/validation_warning.html', {'message': 'Username not found'})
+    except Exception as e:
+        logger.error(f"Error validating login username: {e}")
+        return render(request, 'partials/validation_error.html', {'message': 'Validation error occurred'})
 
 @require_http_methods(["POST"])
 def validate_first_name(request):
@@ -216,6 +260,23 @@ def validate_email_register(request):
         return render(request, 'partials/validation_error.html', {'message': 'Email validation failed'})
 
 @require_http_methods(["POST"])
+def validate_password_reset_email(request):
+    """Validate email for password reset"""
+    email = request.POST.get('email', '').strip()
+    if not email:
+        return HttpResponse('')
+    
+    try:
+        # Check if user exists with this email
+        if User.objects.filter(email=email).exists():
+            return render(request, 'partials/validation_success.html', {'message': 'Email found in our system'})
+        else:
+            return render(request, 'partials/validation_warning.html', {'message': 'No account found with this email'})
+    except Exception as e:
+        logger.error(f"Error validating password reset email: {e}")
+        return render(request, 'partials/validation_error.html', {'message': 'Email validation failed'})
+
+@require_http_methods(["POST"])
 def validate_password(request):
     """Validate password strength"""
     password = request.POST.get('password1', '').strip()
@@ -248,8 +309,10 @@ def validate_password2(request):
     try:
         if password1 != password2:
             return render(request, 'partials/validation_error.html', {'message': 'Passwords do not match'})
-        else:
+        elif len(password2) > 0:
             return render(request, 'partials/validation_success.html', {'message': 'Passwords match!'})
+        else:
+            return HttpResponse('')
         
     except Exception as e:
         logger.error(f"Error validating password confirmation: {e}")
