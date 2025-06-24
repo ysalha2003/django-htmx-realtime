@@ -4,10 +4,8 @@
         <div class="loading-spinner"></div>
     </div>
     
-    <form hx-post="{% url 'accounts:profile' %}" 
-          hx-target="#profile-form-container" 
-          hx-swap="innerHTML" 
-          hx-indicator=".loading-overlay"
+    <form method="post" 
+          action="{% url 'accounts:profile' %}"
           enctype="multipart/form-data" 
           class="space-y-6" 
           novalidate>
@@ -55,7 +53,7 @@
             <div class="flex justify-between mt-1">
                 <div id="bio-validation" class="validation-container flex-1"></div>
                 <div class="text-xs text-gray-400">
-                    <span id="bio-count">0</span>/500 characters
+                    <span id="bio-count">{% if form.bio.value %}{{ form.bio.value|length }}{% else %}0{% endif %}</span>/500 characters
                 </div>
             </div>
             {% if form.bio.errors %}
@@ -155,7 +153,7 @@
         <div class="pt-6 border-t border-gray-200">
             <button type="submit" class="btn btn-primary text-lg font-semibold px-8 py-3">
                 <span class="flex items-center justify-center">
-                    <svg class="htmx-indicator w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
                     Save Changes
@@ -261,6 +259,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (button && !button.disabled) {
             button.classList.add('btn-loading');
             button.disabled = true;
+            
+            // Show success message
+            if (window.toastManager) {
+                window.toastManager.info('Saving profile changes...');
+            }
             
             // Re-enable after timeout as fallback
             setTimeout(() => {
