@@ -25,11 +25,31 @@
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <meta name="htmx-config" content='{"globalViewTransitions": true}'>
+    
+    <!-- CSRF Token for HTMX -->
+    <script>
+        // Get CSRF token for HTMX requests
+        function getCSRFToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}';
+        }
+        
+        // Configure HTMX to use CSRF token
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.addEventListener('htmx:configRequest', function(evt) {
+                evt.detail.headers['X-CSRFToken'] = getCSRFToken();
+            });
+        });
+    </script>
 </head>
-<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' class="min-h-screen bg-gray-50 flex flex-col font-sans antialiased">
+<body class="min-h-screen bg-gray-50 flex flex-col font-sans antialiased">
+    
+    <!-- Hidden CSRF Token -->
+    {% csrf_token %}
     
     <!-- Modern Toast Notification Container -->
     <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-3 max-w-sm"></div>
+
+    <!-- Rest of the template content... -->
 
     <!-- Navigation -->
     <nav class="bg-gray-800 shadow-xl border-b border-gray-700">
