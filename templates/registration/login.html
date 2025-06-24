@@ -3,20 +3,132 @@
 {% block content %}
 <div class="max-w-md mx-auto">
     <div class="card">
-        <div class="card-header text-center"><h2 class="text-2xl font-bold text-gray-800">Sign In</h2></div>
-        <div class="card-body">
-            <form method="post" class="space-y-6">
-                {% csrf_token %}
-                <div><label class="form-label">Username</label><input type="text" name="username" class="form-input"></div>
-                <div><label class="form-label">Password</label><input type="password" name="password" class="form-input"></div>
-                {% if form.errors %}<p class="text-red-500 text-sm">Your username and password didn't match. Please try again.</p>{% endif %}
-                <button type="submit" class="btn-primary w-full text-lg py-3">Login</button>
-            </form>
+        <div class="card-header text-center">
+            <h2 class="text-2xl font-bold text-gray-800">Sign In</h2>
+            <p class="text-gray-600 mt-2">Welcome back! Please sign in to your account.</p>
         </div>
-        <div class="card-body border-t text-center">
-            <a href="{% url 'accounts:password_reset' %}" class="text-sm text-blue-600 hover:underline">Forgot password?</a>
-            <p class="text-gray-600 mt-2">Don't have an account? <a href="{% url 'accounts:register' %}" class="text-blue-600 hover:underline">Sign up</a></p>
+        
+        <div class="card-body">
+            <div class="relative">
+                <!-- Loading overlay -->
+                <div class="htmx-indicator loading-overlay hidden">
+                    <div class="loading-spinner"></div>
+                </div>
+                
+                <form method="post" class="space-y-6" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Username Field -->
+                    <div class="form-group">
+                        <label for="id_username" class="form-label">
+                            Username
+                            <span class="text-red-500 ml-1">*</span>
+                        </label>
+                        <input type="text" 
+                               name="username" 
+                               id="id_username"
+                               class="form-input" 
+                               placeholder="Enter your username"
+                               required
+                               autocomplete="username">
+                    </div>
+                    
+                    <!-- Password Field -->
+                    <div class="form-group">
+                        <label for="id_password" class="form-label">
+                            Password
+                            <span class="text-red-500 ml-1">*</span>
+                        </label>
+                        <input type="password" 
+                               name="password" 
+                               id="id_password"
+                               class="form-input" 
+                               placeholder="Enter your password"
+                               required
+                               autocomplete="current-password">
+                    </div>
+                    
+                    <!-- Form Errors -->
+                    {% if form.errors %}
+                        <div class="validation-message validation-error">
+                            <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Your username and password didn't match. Please try again.</span>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Submit Button -->
+                    <div class="pt-2">
+                        <button type="submit" class="btn btn-primary w-full text-lg py-3 font-semibold">
+                            <span class="flex items-center justify-center">
+                                <svg class="htmx-indicator w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                                </svg>
+                                Sign In
+                            </span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Footer Links -->
+        <div class="card-body border-t border-gray-200 text-center space-y-3">
+            <a href="{% url 'accounts:password_reset' %}" class="text-sm text-blue-600 hover:text-blue-700 hover:underline font-medium">
+                Forgot your password?
+            </a>
+            <p class="text-gray-600 text-sm">
+                Don't have an account? 
+                <a href="{% url 'accounts:register' %}" class="text-blue-600 hover:text-blue-700 hover:underline font-medium">
+                    Create one here
+                </a>
+            </p>
         </div>
     </div>
 </div>
+
+<script>
+// Enhanced login form interactions
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    if (!form) return;
+    
+    // Add loading state to button on submit
+    form.addEventListener('submit', function(e) {
+        const button = form.querySelector('button[type="submit"]');
+        if (button && !button.disabled) {
+            button.classList.add('btn-loading');
+            button.disabled = true;
+            
+            // Show loading overlay
+            const overlay = document.querySelector('.htmx-indicator');
+            if (overlay) {
+                overlay.classList.remove('hidden');
+            }
+            
+            // Re-enable after timeout as fallback
+            setTimeout(() => {
+                button.classList.remove('btn-loading');
+                button.disabled = false;
+                if (overlay) {
+                    overlay.classList.add('hidden');
+                }
+            }, 10000);
+        }
+    });
+    
+    // Enhanced input interactions
+    const inputs = form.querySelectorAll('.form-input');
+    inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            this.closest('.form-group')?.classList.add('focused');
+        });
+        
+        input.addEventListener('blur', function() {
+            this.closest('.form-group')?.classList.remove('focused');
+        });
+    });
+});
+</script>
 {% endblock %}
