@@ -1,22 +1,306 @@
-<form hx-post="{% url 'accounts:profile' %}" hx-target="#profile-form-container" hx-swap="innerHTML" enctype="multipart/form-data" class="space-y-6" novalidate>
-    {% csrf_token %}
-    <div class="flex items-center space-x-4">
-        {% if profile.profile_picture %}
-            <img src="{{ profile.profile_picture.url }}" class="w-20 h-20 rounded-full object-cover">
-        {% else %}
-            <div class="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">No Image</div>
+<div class="relative">
+    <!-- Loading overlay -->
+    <div class="htmx-indicator loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+    
+    <form hx-post="{% url 'accounts:profile' %}" 
+          hx-target="#profile-form-container" 
+          hx-swap="innerHTML" 
+          hx-indicator=".loading-overlay"
+          enctype="multipart/form-data" 
+          class="space-y-6" 
+          novalidate>
+        {% csrf_token %}
+        
+        <!-- Profile Picture Section -->
+        <div class="flex items-center space-x-6 p-6 bg-gray-50 rounded-xl">
+            <div class="flex-shrink-0">
+                {% if profile.profile_picture %}
+                    <img src="{{ profile.profile_picture.url }}" 
+                         class="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg" 
+                         alt="Profile Picture">
+                {% else %}
+                    <div class="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center text-gray-500 border-4 border-white shadow-lg">
+                        <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                        </svg>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="flex-1">
+                <label for="{{ form.profile_picture.id_for_label }}" class="form-label">
+                    Profile Picture
+                </label>
+                <p class="text-sm text-gray-500 mb-2">Upload a new profile picture (max 5MB)</p>
+                {{ form.profile_picture }}
+                {% if form.profile_picture.errors %}
+                    <div class="validation-message validation-error mt-2">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>{{ form.profile_picture.errors|first }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Bio Section -->
+        <div class="form-group">
+            <label for="{{ form.bio.id_for_label }}" class="form-label">
+                Bio
+            </label>
+            <p class="text-sm text-gray-500 mb-2">Tell us about yourself (optional, max 500 characters)</p>
+            {{ form.bio }}
+            <div class="flex justify-between mt-1">
+                <div id="bio-validation" class="validation-container flex-1"></div>
+                <div class="text-xs text-gray-400">
+                    <span id="bio-count">0</span>/500 characters
+                </div>
+            </div>
+            {% if form.bio.errors %}
+                <div class="validation-message validation-error">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                    <span>{{ form.bio.errors|first }}</span>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Personal Information Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Birth Date -->
+            <div class="form-group">
+                <label for="{{ form.birth_date.id_for_label }}" class="form-label">
+                    Birth Date
+                </label>
+                {{ form.birth_date }}
+                {% if form.birth_date.errors %}
+                    <div class="validation-message validation-error">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>{{ form.birth_date.errors|first }}</span>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Phone Number -->
+            <div class="form-group">
+                <label for="{{ form.phone_number.id_for_label }}" class="form-label">
+                    Phone Number
+                </label>
+                {{ form.phone_number }}
+                <div id="phone-validation" class="validation-container"></div>
+                {% if form.phone_number.errors %}
+                    <div class="validation-message validation-error">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>{{ form.phone_number.errors|first }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Contact Information Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Website -->
+            <div class="form-group">
+                <label for="{{ form.website.id_for_label }}" class="form-label">
+                    Website
+                </label>
+                {{ form.website }}
+                <div id="website-validation" class="validation-container"></div>
+                {% if form.website.errors %}
+                    <div class="validation-message validation-error">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>{{ form.website.errors|first }}</span>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Location -->
+            <div class="form-group">
+                <label for="{{ form.location.id_for_label }}" class="form-label">
+                    Location
+                </label>
+                {{ form.location }}
+                <div id="location-validation" class="validation-container"></div>
+                {% if form.location.errors %}
+                    <div class="validation-message validation-error">
+                        <svg fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>{{ form.location.errors|first }}</span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Global Form Errors -->
+        {% if form.non_field_errors %}
+            <div class="validation-message validation-error">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                <span>{{ form.non_field_errors|first }}</span>
+            </div>
         {% endif %}
-        <div><label class="form-label">Change Profile Picture</label>{{ form.profile_picture }}</div>
-    </div>
-    <div><label class="form-label">Bio</label>{{ form.bio }}</div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div><label class="form-label">Birth Date</label>{{ form.birth_date }}</div>
-        <div><label class="form-label">Phone Number</label>{{ form.phone_number }}</div>
-    </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div><label class="form-label">Website</label>{{ form.website }}</div>
-        <div><label class="form-label">Location</label>{{ form.location }}</div>
-    </div>
-    {% for field in form %}{% if field.errors %}<div class="validation-error">{{ field.label }}: {{ field.errors|first }}</div>{% endif %}{% endfor %}
-    <button type="submit" class="btn-primary">Save Changes</button>
-</form>
+        
+        <!-- Submit Button -->
+        <div class="pt-6 border-t border-gray-200">
+            <button type="submit" class="btn btn-primary text-lg font-semibold px-8 py-3">
+                <span class="flex items-center justify-center">
+                    <svg class="htmx-indicator w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Save Changes
+                </span>
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Enhanced profile form interactions with comprehensive validation
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('#profile-form-container form');
+    if (!form) return;
+    
+    // Bio character counter
+    const bioTextarea = form.querySelector('textarea[name="bio"]');
+    const bioCounter = document.getElementById('bio-count');
+    
+    if (bioTextarea && bioCounter) {
+        const updateBioCount = () => {
+            const count = bioTextarea.value.length;
+            bioCounter.textContent = count;
+            
+            if (count > 500) {
+                bioCounter.parentElement.classList.add('text-red-500');
+                bioCounter.parentElement.classList.remove('text-gray-400');
+            } else if (count > 450) {
+                bioCounter.parentElement.classList.add('text-amber-500');
+                bioCounter.parentElement.classList.remove('text-gray-400', 'text-red-500');
+            } else {
+                bioCounter.parentElement.classList.add('text-gray-400');
+                bioCounter.parentElement.classList.remove('text-red-500', 'text-amber-500');
+            }
+        };
+        
+        bioTextarea.addEventListener('input', updateBioCount);
+        updateBioCount(); // Initial count
+    }
+    
+    // Phone number validation
+    const phoneInput = form.querySelector('input[name="phone_number"]');
+    if (phoneInput) {
+        phoneInput.setAttribute('hx-post', '/validate/phone-number/');
+        phoneInput.setAttribute('hx-trigger', 'keyup changed delay:500ms');
+        phoneInput.setAttribute('hx-target', '#phone-validation');
+        phoneInput.setAttribute('hx-swap', 'innerHTML');
+    }
+    
+    // Website validation
+    const websiteInput = form.querySelector('input[name="website"]');
+    if (websiteInput) {
+        websiteInput.setAttribute('hx-post', '/validate/website/');
+        websiteInput.setAttribute('hx-trigger', 'keyup changed delay:500ms');
+        websiteInput.setAttribute('hx-target', '#website-validation');
+        websiteInput.setAttribute('hx-swap', 'innerHTML');
+    }
+    
+    // Location validation
+    const locationInput = form.querySelector('input[name="location"]');
+    if (locationInput) {
+        locationInput.setAttribute('hx-post', '/validate/location/');
+        locationInput.setAttribute('hx-trigger', 'keyup changed delay:500ms');
+        locationInput.setAttribute('hx-target', '#location-validation');
+        locationInput.setAttribute('hx-swap', 'innerHTML');
+    }
+    
+    // File input styling and validation
+    const fileInput = form.querySelector('input[type="file"]');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Validate file size (5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    if (window.toastManager) {
+                        window.toastManager.error('Profile picture must be less than 5MB');
+                    }
+                    this.value = '';
+                    return;
+                }
+                
+                // Validate file type
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                if (!allowedTypes.includes(file.type)) {
+                    if (window.toastManager) {
+                        window.toastManager.error('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+                    }
+                    this.value = '';
+                    return;
+                }
+                
+                if (window.toastManager) {
+                    window.toastManager.success('Profile picture selected successfully');
+                }
+            }
+        });
+    }
+    
+    // Add loading state to button on submit
+    form.addEventListener('submit', function(e) {
+        const button = form.querySelector('button[type="submit"]');
+        if (button && !button.disabled) {
+            button.classList.add('btn-loading');
+            button.disabled = true;
+            
+            // Re-enable after timeout as fallback
+            setTimeout(() => {
+                button.classList.remove('btn-loading');
+                button.disabled = false;
+            }, 10000);
+        }
+    });
+    
+    // Enhanced input interactions
+    const inputs = form.querySelectorAll('.form-input');
+    inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            this.closest('.form-group')?.classList.add('focused');
+        });
+        
+        input.addEventListener('blur', function() {
+            this.closest('.form-group')?.classList.remove('focused');
+        });
+    });
+    
+    // Birth date validation
+    const birthDateInput = form.querySelector('input[name="birth_date"]');
+    if (birthDateInput) {
+        birthDateInput.addEventListener('change', function() {
+            const selectedDate = new Date(this.value);
+            const today = new Date();
+            const age = today.getFullYear() - selectedDate.getFullYear();
+            
+            if (selectedDate > today) {
+                if (window.toastManager) {
+                    window.toastManager.error('Birth date cannot be in the future');
+                }
+                this.value = '';
+            } else if (age > 120) {
+                if (window.toastManager) {
+                    window.toastManager.warning('Please verify your birth date');
+                }
+            }
+        });
+    }
+});
+</script>
