@@ -188,13 +188,15 @@ def api_pending_contacts_count(request):
 # Enhanced validation endpoints with comprehensive field support
 @require_http_methods(["POST"])
 def validate_name(request):
-    """Validate name field"""
+    """Enhanced name validation for contact form"""
     name = request.POST.get('name', '').strip()
     if not name:
         return HttpResponse('')
     
     try:
-        is_valid, message = validate_name(name)
+        # Use the enhanced validate_name from utils
+        from .utils import validate_name as validate_name_util
+        is_valid, message = validate_name_util(name)
         log_validation_attempt('name', name, is_valid, request)
         
         if is_valid:
@@ -207,7 +209,7 @@ def validate_name(request):
 
 @require_http_methods(["POST"])
 def validate_email(request):
-    """Validate email field for contact form"""
+    """Enhanced email validation for contact form"""
     email = request.POST.get('email', '').strip()
     if not email:
         return HttpResponse('')
@@ -215,13 +217,18 @@ def validate_email(request):
     try:
         is_valid, message = validate_email_format(email)
         
-        # Check if email has contacted before (warning, not error)
-        if is_valid and Contact.objects.filter(email=email).exists():
-            return render(request, 'partials/validation_warning.html', {'message': 'This email has contacted us before'})
-        elif is_valid:
-            return render(request, 'partials/validation_success.html', {'message': message})
-        else:
+        if not is_valid:
             return render(request, 'partials/validation_error.html', {'message': message})
+        
+        # Check if email has contacted before (warning, not error)
+        if Contact.objects.filter(email=email).exists():
+            return render(request, 'partials/validation_warning.html', {
+                'message': 'This email has contacted us before'
+            })
+        else:
+            return render(request, 'partials/validation_success.html', {
+                'message': '✓ Email looks good!'
+            })
         
     except Exception as e:
         logger.error(f"Error validating email: {e}")
@@ -229,7 +236,7 @@ def validate_email(request):
 
 @require_http_methods(["POST"])
 def validate_subject(request):
-    """Validate subject field"""
+    """Enhanced subject validation"""
     subject = request.POST.get('subject', '').strip()
     if not subject:
         return HttpResponse('')
@@ -247,7 +254,7 @@ def validate_subject(request):
 
 @require_http_methods(["POST"])
 def validate_message(request):
-    """Validate message field"""
+    """Enhanced message validation"""
     message = request.POST.get('message', '').strip()
     if not message:
         return HttpResponse('')
@@ -265,7 +272,7 @@ def validate_message(request):
 
 @require_http_methods(["POST"])
 def validate_newsletter_email(request):
-    """Validate email for newsletter subscription"""
+    """Enhanced newsletter email validation"""
     email = request.POST.get('email', '').strip()
     if not email:
         return HttpResponse('')
@@ -281,7 +288,7 @@ def validate_newsletter_email(request):
         logger.error(f"Error validating newsletter email: {e}")
         return render(request, 'partials/validation_error.html', {'message': 'Validation error occurred'})
 
-# New validation endpoints for profile fields
+# Profile validation endpoints (for user profile forms)
 @require_http_methods(["POST"])
 def validate_phone_number(request):
     """Validate phone number field"""
