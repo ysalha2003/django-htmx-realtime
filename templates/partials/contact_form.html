@@ -27,7 +27,7 @@
                         <svg fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                         </svg>
-                        {{ form.name.errors|first }}
+                        <span>{{ form.name.errors|first }}</span>
                     </div>
                 {% endif %}
             </div>
@@ -45,7 +45,7 @@
                         <svg fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                         </svg>
-                        {{ form.email.errors|first }}
+                        <span>{{ form.email.errors|first }}</span>
                     </div>
                 {% endif %}
             </div>
@@ -66,7 +66,7 @@
                         <svg fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                         </svg>
-                        {{ form.subject.errors|first }}
+                        <span>{{ form.subject.errors|first }}</span>
                     </div>
                 {% endif %}
             </div>
@@ -82,7 +82,7 @@
                         <svg fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                         </svg>
-                        {{ form.category.errors|first }}
+                        <span>{{ form.category.errors|first }}</span>
                     </div>
                 {% endif %}
             </div>
@@ -101,7 +101,7 @@
                     <svg fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                     </svg>
-                    {{ form.message.errors|first }}
+                    <span>{{ form.message.errors|first }}</span>
                 </div>
             {% endif %}
         </div>
@@ -112,7 +112,7 @@
                 <svg fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                 </svg>
-                {{ form.non_field_errors|first }}
+                <span>{{ form.non_field_errors|first }}</span>
             </div>
         {% endif %}
         
@@ -121,7 +121,7 @@
             <button type="submit" class="btn btn-primary w-full text-lg py-4 font-semibold">
                 <span class="flex items-center justify-center">
                     <svg class="htmx-indicator w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v20m8-10H4"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                     </svg>
                     Send Message
                 </span>
@@ -139,7 +139,7 @@
 </div>
 
 <script>
-// Enhanced form interactions
+// Enhanced form interactions with improved validation
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('#contact-form-container form');
     if (!form) return;
@@ -169,6 +169,78 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('blur', function() {
             this.closest('.form-group')?.classList.remove('focused');
         });
+        
+        // Real-time character count for message field
+        if (input.getAttribute('name') === 'message') {
+            input.addEventListener('input', function() {
+                const currentLength = this.value.length;
+                const validationContainer = document.getElementById('message-validation');
+                
+                if (currentLength > 0 && currentLength < 10) {
+                    const remaining = 10 - currentLength;
+                    validationContainer.innerHTML = `
+                        <div class="validation-message validation-warning">
+                            <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Need ${remaining} more characters</span>
+                        </div>
+                    `;
+                }
+            });
+        }
+        
+        // Enhanced validation for subject field
+        if (input.getAttribute('name') === 'subject') {
+            input.addEventListener('input', function() {
+                const currentLength = this.value.length;
+                const validationContainer = document.getElementById('subject-validation');
+                
+                if (currentLength > 0 && currentLength < 5) {
+                    const remaining = 5 - currentLength;
+                    validationContainer.innerHTML = `
+                        <div class="validation-message validation-warning">
+                            <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Need ${remaining} more characters</span>
+                        </div>
+                    `;
+                }
+            });
+        }
+    });
+    
+    // Form validation before submit
+    form.addEventListener('submit', function(e) {
+        let hasErrors = false;
+        const requiredFields = ['name', 'email', 'subject', 'message'];
+        
+        requiredFields.forEach(fieldName => {
+            const field = form.querySelector(`[name="${fieldName}"]`);
+            if (field && !field.value.trim()) {
+                hasErrors = true;
+                const validationContainer = document.getElementById(`${fieldName}-validation`);
+                if (validationContainer) {
+                    validationContainer.innerHTML = `
+                        <div class="validation-message validation-error">
+                            <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>This field is required</span>
+                        </div>
+                    `;
+                }
+            }
+        });
+        
+        if (hasErrors) {
+            e.preventDefault();
+            // Show toast notification
+            if (window.toastManager) {
+                window.toastManager.error('Please fill in all required fields before submitting.');
+            }
+        }
     });
 });
 </script>
