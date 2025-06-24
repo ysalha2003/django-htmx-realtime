@@ -1,9 +1,69 @@
-<form hx-post="{% url 'core:newsletter_subscribe' %}" hx-target="#newsletter-section" hx-swap="innerHTML" class="max-w-md mx-auto" novalidate>
-    {% csrf_token %}
-    <div class="flex gap-4">
-        {{ newsletter_form.email }}
-        <button type="submit" class="btn-secondary bg-white text-blue-600 hover:bg-gray-100">Subscribe</button>
+<div class="relative">
+    <!-- Loading overlay -->
+    <div class="htmx-indicator loading-overlay">
+        <div class="loading-spinner"></div>
     </div>
-    <div id="newsletter-validation" class="text-center mt-2 text-white"></div>
-    {% if newsletter_form.email.errors %}<div class="validation-error mt-2 text-white">{{ newsletter_form.email.errors|first }}</div>{% endif %}
-</form>
+    
+    <form hx-post="{% url 'core:newsletter_subscribe' %}" 
+          hx-target="#newsletter-section" 
+          hx-swap="innerHTML" 
+          hx-indicator=".loading-overlay"
+          class="max-w-md mx-auto" 
+          novalidate>
+        {% csrf_token %}
+        
+        <div class="flex flex-col sm:flex-row gap-3">
+            <!-- Email Input -->
+            <div class="flex-1">
+                {{ newsletter_form.email }}
+            </div>
+            
+            <!-- Subscribe Button -->
+            <div class="flex-shrink-0">
+                <button type="submit" class="btn w-full sm:w-auto bg-white text-blue-600 hover:bg-gray-100 border border-white/20 font-semibold px-6 py-3 min-h-[44px]">
+                    <span class="flex items-center justify-center">
+                        <svg class="htmx-indicator w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                        Subscribe
+                    </span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Validation Messages -->
+        <div id="newsletter-validation" class="validation-container mt-3 text-center"></div>
+        
+        {% if newsletter_form.email.errors %}
+            <div class="validation-message validation-error mt-3 text-center text-white">
+                <svg fill="currentColor" viewBox="0 0 20 20" class="w-4 h-4 mr-2 flex-shrink-0">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                <span>{{ newsletter_form.email.errors|first }}</span>
+            </div>
+        {% endif %}
+    </form>
+</div>
+
+<script>
+// Enhanced newsletter form interactions
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('#newsletter-section form');
+    if (!form) return;
+    
+    // Add loading state to button on submit
+    form.addEventListener('submit', function(e) {
+        const button = form.querySelector('button[type="submit"]');
+        if (button && !button.disabled) {
+            button.classList.add('btn-loading');
+            button.disabled = true;
+            
+            // Re-enable after timeout as fallback
+            setTimeout(() => {
+                button.classList.remove('btn-loading');
+                button.disabled = false;
+            }, 10000);
+        }
+    });
+});
+</script>
