@@ -28,11 +28,15 @@ urlpatterns = [
         template_name='registration/password_reset_complete.html'
     ), name='password_reset_complete'),
 
-    # Validation
+    # Enhanced validation endpoints for registration
     path('validate/username/', views.validate_username, name='validate_username'),
     path('validate/first-name/', views.validate_first_name, name='validate_first_name'),
     path('validate/last-name/', views.validate_last_name, name='validate_last_name'),
     path('validate/email/', views.validate_email_register, name='validate_email'),
     path('validate/password/', views.validate_password, name='validate_password'),
     path('validate/password2/', views.validate_password2, name='validate_password2'),
+    
+    # New validation endpoints for login and password reset
+    path('validate/login-username/', views.validate_login_username, name='validate_login_username'),
+    path('validate/password-reset-email/', views.validate_password_reset_email, name='validate_password_reset_email'),
 ]
