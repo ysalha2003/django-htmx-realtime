@@ -1,15 +1,17 @@
+# accounts/views.py
 import logging
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import reverse_lazy
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
+from django.views.decorators.csrf import csrf_exempt
 
 from .forms import CustomUserCreationForm, UserProfileForm
 from .models import UserProfile
@@ -93,15 +95,13 @@ def register_view(request):
                 logger.warning(f"Invalid registration form: {form.errors}")
                 if is_htmx_request(request):
                     return render(request, 'partials/register_form.html', {'form': form})
-                else:
-                    # For regular form submission, show errors on the same page
-                    return render(request, 'registration/register.html', {'form': form})
+                # For regular requests, show form with errors
+                messages.error(request, 'Please correct the errors below.')
         except Exception as e:
             logger.error(f"Error during registration: {e}")
             if is_htmx_request(request):
                 return render(request, 'partials/register_form.html', {'form': form})
             messages.error(request, 'An error occurred during registration. Please try again.')
-            return render(request, 'registration/register.html', {'form': form})
     else:
         form = CustomUserCreationForm()
     
@@ -121,6 +121,14 @@ def profile_view(request):
                     form.save()
                     logger.info(f"Profile updated for user: {request.user.username}")
                     
+                    # For AJAX/HTMX requests, return JSON response
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or is_htmx_request(request):
+                        messages.success(request, 'Profile updated successfully!')
+                        return render(request, 'partials/profile_form.html', {
+                            'form': UserProfileForm(instance=profile), 
+                            'profile': profile
+                        })
+                    
                     messages.success(
                         request, 
                         'Your profile has been updated successfully!',
@@ -129,12 +137,27 @@ def profile_view(request):
                     return redirect('accounts:profile')
                 else:
                     logger.warning(f"Invalid profile form for user {request.user.username}: {form.errors}")
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or is_htmx_request(request):
+                        return render(request, 'partials/profile_form.html', {
+                            'form': form, 
+                            'profile': profile
+                        })
                     messages.error(request, 'Please correct the errors below.')
             except ValidationError as e:
                 logger.warning(f"Profile validation error for user {request.user.username}: {e}")
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or is_htmx_request(request):
+                    return render(request, 'partials/profile_form.html', {
+                        'form': form, 
+                        'profile': profile
+                    })
                 messages.error(request, 'Please correct the errors in your profile.')
             except Exception as e:
                 logger.error(f"Error updating profile for user {request.user.username}: {e}")
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or is_htmx_request(request):
+                    return render(request, 'partials/profile_form.html', {
+                        'form': form, 
+                        'profile': profile
+                    })
                 messages.error(request, 'An error occurred while updating your profile.')
         else:
             form = UserProfileForm(instance=profile)
