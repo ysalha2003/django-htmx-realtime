@@ -60,6 +60,9 @@ def contact_view(request):
                 logger.warning(f"Invalid contact form submission: {form.errors}")
                 if is_htmx_request(request):
                     return render(request, 'partials/contact_form.html', {'form': form})
+                else:
+                    # For regular form submission, show errors on the same page
+                    messages.error(request, 'Please correct the errors in the form below.')
         except Exception as e:
             logger.error(f"Error processing contact form: {e}")
             if is_htmx_request(request):
